@@ -1,0 +1,25 @@
+.canvas {
+  display: block;
+}
+
+.controls {
+  clear: both;
+}
+.controls .btn-play {
+  float: left;
+}
+.controls .timestamps {
+  float: right;
+}
+
+.btn-play, .btn-play:enabled {
+  background-color: transparent;
+  border: 0;
+  color: #000080;
+  font-size: 40px;
+  margin: 0;
+  padding: 0;
+}
+.btn-play:hover {
+  color: #006079;
+}
