@@ -191,7 +191,7 @@ class AudioPlayer extends React.Component<AudioPlayerProps> {
         muted={this.props.muted}
         onPlay={this.props.onPlay}
         preload={this.props.preload}
-        ref={(ref) => { this.audioElement = ref; }}
+        ref={(ref) => { if (ref) this.audioElement = ref; }}
         src={this.props.src}
         style={this.props.style}
         title={title}

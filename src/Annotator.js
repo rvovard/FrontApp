@@ -121,7 +121,7 @@ class Annotator extends Component<AnnotatorProps, AnnotatorState> {
             onListen={(seconds) => this.updateProgress(seconds)}
             onLoadedMetadata={() => this.updateProgress(0)}
             preload="auto"
-            ref={(element) => { this.audioPlayer = element; } }
+            ref={(element) => { if (element) this.audioPlayer = element; } }
             src={this.props.src}
           ></AudioPlayer>
 
