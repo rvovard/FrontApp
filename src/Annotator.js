@@ -32,6 +32,7 @@ class Annotator extends Component<AnnotatorProps, AnnotatorState> {
 
   constructor(props: AnnotatorProps) {
     super(props);
+
     this.state = {
       isLoading: false,
       isPlaying: false,
@@ -41,15 +42,16 @@ class Annotator extends Component<AnnotatorProps, AnnotatorState> {
     };
 
     this.canvasRef = React.createRef();
-
-    this.playPause = this.playPause.bind(this);
   }
 
-  componentDidMount() {
-    const canvas: HTMLCanvasElement = this.canvasRef.current;
-    const context: CanvasRenderingContext2D = canvas.getContext('2d');
-    context.fillStyle = 'rgba(200, 200, 200)';
-    context.fillRect(0, 0, canvas.width, canvas.height);
+  initSize = (element: ?HTMLElement) => {
+    if (element) {
+      const bounds: ClientRect = element.getBoundingClientRect();
+
+      const canvas: HTMLCanvasElement = this.canvasRef.current;
+      canvas.height = bounds.height - 20;
+      canvas.width = bounds.width;
+    }
   }
 
   playPause = () => {
@@ -63,12 +65,26 @@ class Annotator extends Component<AnnotatorProps, AnnotatorState> {
   }
 
   updateProgress = (seconds: number) => {
-    const progress = (seconds / this.audioPlayer.audioElement.duration) * 100;
+    const progress = seconds / this.audioPlayer.audioElement.duration;
     this.setState({
       currentTime: seconds,
       duration: this.audioPlayer.audioElement.duration,
       progress,
     });
+
+    this.renderCanvas();
+  }
+
+  renderCanvas = () => {
+    const canvas: HTMLCanvasElement = this.canvasRef.current;
+    const context: CanvasRenderingContext2D = canvas.getContext('2d');
+
+    context.fillStyle = 'rgba(200, 200, 200)';
+    context.fillRect(0, 0, canvas.width, canvas.height);
+
+    const newX: number = Math.floor(this.state.progress * canvas.width);
+    context.fillStyle = 'rgba(0, 0, 0)';
+    context.fillRect(newX, 0, 1, canvas.height);
   }
 
   strPad = (nb: number) => {
@@ -98,10 +114,10 @@ class Annotator extends Component<AnnotatorProps, AnnotatorState> {
       return <p>Chargement en cours</p>;
     } else {
       return (
-        <div className="annotator">
+        <div className="annotator" ref={this.initSize}>
           <AudioPlayer
-            controls
-            listenInterval={500}
+            // controls
+            listenInterval={10}
             onListen={(seconds) => this.updateProgress(seconds)}
             onLoadedMetadata={() => this.updateProgress(0)}
             preload="auto"

@@ -1,4 +1,10 @@
+.annotator {
+  margin: 0 auto;
+  width: 90%;
+}
+
 .canvas {
+  cursor: text;
   display: block;
 }
 
