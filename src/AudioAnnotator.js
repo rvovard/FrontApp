@@ -1,10 +1,33 @@
 // @flow
 import React, { Component } from 'react';
+import request from 'superagent';
 
 import AudioPlayer from './AudioPlayer';
 
 import './css/font-awesome-4.7.0.min.css';
 import './css/annotator.css';
+
+if (!process.env.REACT_APP_API_URL) throw new Error('REACT_APP_API_URL missing in env');
+const API_URL = process.env.REACT_APP_API_URL + '/annotation-task';
+// const API_URL = process.env.REACT_APP_API_URL + '/annotation-task/legacy';
+
+type AnnotationTask = {
+  annotationTags: Array<string>,
+  boundaries: {
+    startTime: string,
+    endTime: string,
+    startFrequency: number,
+    endFrequency: number,
+  },
+  audioUrl: string,
+  spectroUrls: {
+    keys: Array<string>,
+    urls: Array<string>,
+  },
+  // @todo delete what follows (old annotator)
+  url: string,
+  spectroUrl: string,
+};
 
 type AudioAnnotatorProps = {
   match: {
@@ -13,15 +36,16 @@ type AudioAnnotatorProps = {
     },
   },
   app_token: string,
-  src: string,
 };
 
 type AudioAnnotatorState = {
   isLoading: boolean,
   isPlaying: boolean,
+  error: ?string,
   currentTime: number,
   duration: number,
   progress: number,
+  task: ?AnnotationTask,
 };
 
 class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState> {
@@ -34,14 +58,41 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
     super(props);
 
     this.state = {
-      isLoading: false,
+      isLoading: true,
       isPlaying: false,
+      error: undefined,
       currentTime: 0,
       duration: 0,
       progress: 0,
+      task: undefined,
     };
 
     this.canvasRef = React.createRef();
+  }
+
+  componentDidMount() {
+    const taskId: number = this.props.match.params.annotation_task_id;
+
+    // Retrieve current task
+    request.get(API_URL + '/' + taskId.toString())
+      .set('Authorization', 'Bearer ' + this.props.app_token)
+      .then(result => {
+        this.setState({
+          task: result.body.task,
+          isLoading: false,
+          error: undefined,
+        });
+      })
+      .catch(err =>
+        this.setState({isLoading: false, error: this.buildErrorMessage(err)})
+      );
+  }
+
+  buildErrorMessage = (err) => {
+    return 'Status: ' + err.status.toString() +
+      ' - Reason: ' + err.message +
+      (err.response.body.title ? ` - ${err.response.body.title}` : '') +
+      (err.response.body.detail ? ` - ${err.response.body.detail}` : '');
   }
 
   initSize = (element: ?HTMLElement) => {
@@ -79,9 +130,11 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
     const canvas: HTMLCanvasElement = this.canvasRef.current;
     const context: CanvasRenderingContext2D = canvas.getContext('2d');
 
+    // Temporary grey background
     context.fillStyle = 'rgba(200, 200, 200)';
     context.fillRect(0, 0, canvas.width, canvas.height);
 
+    // Progress bar
     const newX: number = Math.floor(this.state.progress * canvas.width);
     context.fillStyle = 'rgba(0, 0, 0)';
     context.fillRect(newX, 0, 1, canvas.height);
@@ -111,7 +164,9 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
     const playStatusClass = this.state.isPlaying ? "fa-pause-circle" : "fa-play-circle";
     
     if (this.state.isLoading) {
-      return <p>Chargement en cours</p>;
+      return <p>Loading...</p>;
+    } else if (this.state.error) {
+      return <p>Error while loading task: <code>{this.state.error}</code></p>
     } else {
       return (
         <div className="annotator" ref={this.initSize}>
@@ -122,7 +177,7 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
             onLoadedMetadata={() => this.updateProgress(0)}
             preload="auto"
             ref={(element) => { if (element) this.audioPlayer = element; } }
-            src={this.props.src}
+            src={this.state.task.url}
           ></AudioPlayer>
 
           <canvas
