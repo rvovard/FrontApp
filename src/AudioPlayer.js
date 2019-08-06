@@ -111,7 +111,7 @@ class AudioPlayer extends React.Component<AudioPlayerProps> {
       this.props.onPause(e);
     });
 
-    // When the user drahs the time indicator to a new time
+    // When the user drags the time indicator to a new time
     audio.addEventListener('seeked', (e) => {
       this.props.onSeeked(e);
     });

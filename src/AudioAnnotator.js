@@ -6,7 +6,7 @@ import AudioPlayer from './AudioPlayer';
 import './css/font-awesome-4.7.0.min.css';
 import './css/annotator.css';
 
-type AnnotatorProps = {
+type AudioAnnotatorProps = {
   match: {
     params: {
       annotation_task_id: number
@@ -16,7 +16,7 @@ type AnnotatorProps = {
   src: string,
 };
 
-type AnnotatorState = {
+type AudioAnnotatorState = {
   isLoading: boolean,
   isPlaying: boolean,
   currentTime: number,
@@ -24,13 +24,13 @@ type AnnotatorState = {
   progress: number,
 };
 
-class Annotator extends Component<AnnotatorProps, AnnotatorState> {
+class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState> {
   audioContext: AudioContext;
   audioPlayer: AudioPlayer;
 
   canvasRef: any;
 
-  constructor(props: AnnotatorProps) {
+  constructor(props: AudioAnnotatorProps) {
     super(props);
 
     this.state = {
@@ -149,4 +149,4 @@ class Annotator extends Component<AnnotatorProps, AnnotatorState> {
   }
 }
 
-export default Annotator;
+export default AudioAnnotator;
