@@ -1,5 +1,6 @@
 // @flow
 import React, { Component } from 'react';
+import { Link } from 'react-router-dom';
 import request from 'superagent';
 
 import AudioPlayer from './AudioPlayer';
@@ -8,8 +9,8 @@ import './css/font-awesome-4.7.0.min.css';
 import './css/annotator.css';
 
 if (!process.env.REACT_APP_API_URL) throw new Error('REACT_APP_API_URL missing in env');
-const API_URL = process.env.REACT_APP_API_URL + '/annotation-task';
-// const API_URL = process.env.REACT_APP_API_URL + '/annotation-task/legacy';
+// const API_URL = process.env.REACT_APP_API_URL + '/annotation-task';
+const API_URL = process.env.REACT_APP_API_URL + '/annotation-task/legacy';
 
 type AnnotationTask = {
   annotationTags: Array<string>,
@@ -178,6 +179,10 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
     } else {
       return (
         <div className="annotator" ref={this.initSize}>
+          <p><Link to={'/audio-annotator/legacy/' + this.props.match.params.annotation_task_id}>
+            <button className="btn btn-submit" type="button">Switch to old annotator</button>
+          </Link></p>
+
           <AudioPlayer
             // controls
             listenInterval={10}
