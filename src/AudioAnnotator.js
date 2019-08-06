@@ -83,12 +83,18 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
           error: undefined,
         });
       })
-      .catch(err =>
-        this.setState({isLoading: false, error: this.buildErrorMessage(err)})
-      );
+      .catch(err => {
+        if (err.status && err.status === 401) {
+          // Server returned 401 which means token was revoked
+          document.cookie = 'token=;max-age=0';
+          window.location.reload();
+        } else {
+          this.setState({isLoading: false, error: this.buildErrorMessage(err)});
+        }
+      });
   }
 
-  buildErrorMessage = (err) => {
+  buildErrorMessage = (err: any) => {
     return 'Status: ' + err.status.toString() +
       ' - Reason: ' + err.message +
       (err.response.body.title ? ` - ${err.response.body.title}` : '') +
@@ -162,11 +168,13 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
 
   render() {
     const playStatusClass = this.state.isPlaying ? "fa-pause-circle" : "fa-play-circle";
-    
+
     if (this.state.isLoading) {
       return <p>Loading...</p>;
     } else if (this.state.error) {
       return <p>Error while loading task: <code>{this.state.error}</code></p>
+    } else if (!this.state.task) {
+      return <p>Unknown error while loading task.</p>
     } else {
       return (
         <div className="annotator" ref={this.initSize}>
