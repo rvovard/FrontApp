@@ -9,8 +9,7 @@ import './css/font-awesome-4.7.0.min.css';
 import './css/annotator.css';
 
 if (!process.env.REACT_APP_API_URL) throw new Error('REACT_APP_API_URL missing in env');
-// const API_URL = process.env.REACT_APP_API_URL + '/annotation-task';
-const API_URL = process.env.REACT_APP_API_URL + '/annotation-task/legacy';
+const API_URL = process.env.REACT_APP_API_URL + '/annotation-task';
 
 type AnnotationTask = {
   annotationTags: Array<string>,
@@ -25,9 +24,6 @@ type AnnotationTask = {
     keys: Array<string>,
     urls: Array<string>,
   },
-  // @todo delete what follows (old annotator)
-  url: string,
-  spectroUrl: string,
 };
 
 type AudioAnnotatorProps = {
@@ -190,7 +186,7 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
             onLoadedMetadata={() => this.updateProgress(0)}
             preload="auto"
             ref={(element) => { if (element) this.audioPlayer = element; } }
-            src={this.state.task.url}
+            src={this.state.task.audioUrl}
           ></AudioPlayer>
 
           <canvas
