@@ -20,10 +20,7 @@ type AnnotationTask = {
     endFrequency: number,
   },
   audioUrl: string,
-  spectroUrls: {
-    keys: Array<string>,
-    urls: Array<string>,
-  },
+  spectroUrls: any,
 };
 
 type AudioAnnotatorProps = {
@@ -43,6 +40,7 @@ type AudioAnnotatorState = {
   duration: number,
   progress: number,
   task: ?AnnotationTask,
+  spectrogram: ?Image,
 };
 
 class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState> {
@@ -62,6 +60,7 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
       duration: 0,
       progress: 0,
       task: undefined,
+      spectrogram: undefined,
     };
 
     this.canvasRef = React.createRef();
@@ -74,10 +73,15 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
     request.get(API_URL + '/' + taskId.toString())
       .set('Authorization', 'Bearer ' + this.props.app_token)
       .then(result => {
+        const spectrogram = new Image();
+        spectrogram.onload = this.renderCanvas;
+        spectrogram.src = result.body.task.spectroUrls['100%'];
+
         this.setState({
           task: result.body.task,
           isLoading: false,
           error: undefined,
+          spectrogram,
         });
       })
       .catch(err => {
@@ -133,14 +137,15 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
     const canvas: HTMLCanvasElement = this.canvasRef.current;
     const context: CanvasRenderingContext2D = canvas.getContext('2d');
 
-    // Temporary grey background
-    context.fillStyle = 'rgba(200, 200, 200)';
-    context.fillRect(0, 0, canvas.width, canvas.height);
-
     // Progress bar
     const newX: number = Math.floor(this.state.progress * canvas.width);
     context.fillStyle = 'rgba(0, 0, 0)';
     context.fillRect(newX, 0, 1, canvas.height);
+
+    // Draw spectro image
+    if (this.state.spectrogram) {
+      context.drawImage(this.state.spectrogram, 0, 0, canvas.width, canvas.height);
+    }
   }
 
   strPad = (nb: number) => {
@@ -190,7 +195,7 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
           ></AudioPlayer>
 
           <canvas
-            width="600" height="200"
+            width="600" height="400"
             ref={this.canvasRef}
             className="canvas"
           ></canvas>
