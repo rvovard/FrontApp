@@ -73,12 +73,22 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
     request.get(API_URL + '/' + taskId.toString())
       .set('Authorization', 'Bearer ' + this.props.app_token)
       .then(result => {
+        const task: AnnotationTask = result.body.task;
+
+        // Handling spectrogram image
         const spectrogram = new Image();
         spectrogram.onload = this.renderCanvas;
-        spectrogram.src = result.body.task.spectroUrls['100%'];
+        spectrogram.src = task.spectroUrls['100%'];
 
+        // Computing duration (in seconds)
+        const startDate = new Date(task.boundaries.startTime);
+        const endDate = new Date(task.boundaries.endTime)
+        const duration: number = (endDate.getTime() - startDate.getTime()) / 1000;
+
+        // Finally, setting state
         this.setState({
-          task: result.body.task,
+          task,
+          duration,
           isLoading: false,
           error: undefined,
           spectrogram,
@@ -123,10 +133,9 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
   }
 
   updateProgress = (seconds: number) => {
-    const progress = seconds / this.audioPlayer.audioElement.duration;
+    const progress = seconds / this.state.duration;
     this.setState({
       currentTime: seconds,
-      duration: this.audioPlayer.audioElement.duration,
       progress,
     });
 
@@ -137,15 +146,15 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
     const canvas: HTMLCanvasElement = this.canvasRef.current;
     const context: CanvasRenderingContext2D = canvas.getContext('2d');
 
-    // Progress bar
-    const newX: number = Math.floor(this.state.progress * canvas.width);
-    context.fillStyle = 'rgba(0, 0, 0)';
-    context.fillRect(newX, 0, 1, canvas.height);
-
     // Draw spectro image
     if (this.state.spectrogram) {
       context.drawImage(this.state.spectrogram, 0, 0, canvas.width, canvas.height);
     }
+
+    // Progress bar
+    const newX: number = Math.floor(this.state.progress * canvas.width);
+    context.fillStyle = 'rgba(0, 0, 0)';
+    context.fillRect(newX, 0, 1, canvas.height);
   }
 
   strPad = (nb: number) => {
