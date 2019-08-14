@@ -8,8 +8,17 @@ import AudioPlayer from './AudioPlayer';
 import './css/font-awesome-4.7.0.min.css';
 import './css/annotator.css';
 
+// API constants
 if (!process.env.REACT_APP_API_URL) throw new Error('REACT_APP_API_URL missing in env');
 const API_URL = process.env.REACT_APP_API_URL + '/annotation-task';
+
+// Component dimensions constants
+const WORKBENCH_HEIGHT: number = 600;
+const WORKBENCH_WIDTH: number = 1000;
+const LABELS_AREA_SIZE: number = 100;
+const X_AXIS_SIZE: number = 30;
+const Y_AXIS_SIZE: number = 30;
+
 
 type AnnotationTask = {
   annotationTags: Array<string>,
@@ -33,9 +42,11 @@ type AudioAnnotatorProps = {
 };
 
 type AudioAnnotatorState = {
+  error: ?string,
+  height: number,
+  width: number,
   isLoading: boolean,
   isPlaying: boolean,
-  error: ?string,
   currentTime: number,
   duration: number,
   progress: number,
@@ -53,9 +64,11 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
     super(props);
 
     this.state = {
+      error: undefined,
+      height: WORKBENCH_HEIGHT,
+      width: WORKBENCH_WIDTH,
       isLoading: true,
       isPlaying: false,
-      error: undefined,
       currentTime: 0,
       duration: 0,
       progress: 0,
@@ -112,13 +125,14 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
       (err.response.body.detail ? ` - ${err.response.body.detail}` : '');
   }
 
-  initSize = (element: ?HTMLElement) => {
-    if (element) {
-      const bounds: ClientRect = element.getBoundingClientRect();
+  initSizes = (wrapper: ?HTMLElement) => {
+    if (wrapper) {
+      const bounds: ClientRect = wrapper.getBoundingClientRect();
+      this.setState({width: bounds.width});
 
       const canvas: HTMLCanvasElement = this.canvasRef.current;
-      canvas.height = bounds.height - 20;
-      canvas.width = bounds.width;
+      canvas.height = this.state.height - LABELS_AREA_SIZE - Y_AXIS_SIZE;
+      canvas.width = bounds.width - X_AXIS_SIZE;
     }
   }
 
@@ -178,8 +192,6 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
   }
 
   render() {
-    const playStatusClass = this.state.isPlaying ? "fa-pause-circle" : "fa-play-circle";
-
     if (this.state.isLoading) {
       return <p>Loading...</p>;
     } else if (this.state.error) {
@@ -187,8 +199,20 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
     } else if (!this.state.task) {
       return <p>Unknown error while loading task.</p>
     } else {
+      const playStatusClass = this.state.isPlaying ? "fa-pause-circle" : "fa-play-circle";
+      const styles = {
+        workbench: {
+          height: this.state.height,
+          width: this.state.width,
+        },
+        canvas: {
+          top: LABELS_AREA_SIZE,
+          left: Y_AXIS_SIZE,
+        },
+      };
+
       return (
-        <div className="annotator" ref={this.initSize}>
+        <div className="annotator" ref={this.initSizes}>
           <p><Link to={'/audio-annotator/legacy/' + this.props.match.params.annotation_task_id}>
             <button className="btn btn-submit" type="button">Switch to old annotator</button>
           </Link></p>
@@ -203,11 +227,15 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
             src={this.state.task.audioUrl}
           ></AudioPlayer>
 
-          <canvas
-            width="600" height="400"
-            ref={this.canvasRef}
-            className="canvas"
-          ></canvas>
+          <div className="workbench" style={styles.workbench}>
+            <canvas
+              className="canvas"
+              ref={this.canvasRef}
+              height={WORKBENCH_HEIGHT - LABELS_AREA_SIZE - X_AXIS_SIZE}
+              width={WORKBENCH_WIDTH - Y_AXIS_SIZE}
+              style={styles.canvas}
+            ></canvas>
+          </div>
 
           <div className="controls">
             <button

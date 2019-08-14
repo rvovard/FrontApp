@@ -1,11 +1,18 @@
 .annotator {
   margin: 0 auto;
-  width: 90%;
+  height: 100%;
+  width: 95%;
+}
+
+.workbench {
+  position: relative;
+  background-color: #eeeeee;
 }
 
 .canvas {
-  cursor: text;
   display: block;
+  position: relative;
+  cursor: crosshair;
 }
 
 .controls {
