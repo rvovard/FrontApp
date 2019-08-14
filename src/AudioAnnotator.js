@@ -174,7 +174,7 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
     return this.strPad(hours) + ':'
       + this.strPad(minutes) + ':'
       + this.strPad(seconds) + '.'
-      + ms.toFixed(3).substring(2);
+      + ms.toFixed(3).slice(-3);
   }
 
   render() {
