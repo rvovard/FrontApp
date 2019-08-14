@@ -136,6 +136,12 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
     }
   }
 
+  seekTo = (event: SyntheticMouseEvent<HTMLCanvasElement>) => {
+    const newTime = Math.floor(this.state.duration * event.nativeEvent.offsetX / event.currentTarget.width);
+    this.audioPlayer.audioElement.currentTime = newTime;
+    this.updateProgress(newTime);
+  }
+
   playPause = () => {
     if (this.audioPlayer.audioElement.paused) {
       this.setState({isPlaying: true});
@@ -151,9 +157,7 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
     this.setState({
       currentTime: seconds,
       progress,
-    });
-
-    this.renderCanvas();
+    }, this.renderCanvas);
   }
 
   renderCanvas = () => {
@@ -234,6 +238,7 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
               height={WORKBENCH_HEIGHT - LABELS_AREA_SIZE - X_AXIS_SIZE}
               width={WORKBENCH_WIDTH - Y_AXIS_SIZE}
               style={styles.canvas}
+              onClick={this.seekTo}
             ></canvas>
           </div>
 
