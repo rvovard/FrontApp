@@ -32,6 +32,15 @@ type AnnotationTask = {
   spectroUrls: any,
 };
 
+type Annotation = {
+  id: string,
+  annotation: string,
+  startTime: number,
+  endTime: number,
+  startFrequency: number,
+  endFrequency: number,
+};
+
 type AudioAnnotatorProps = {
   match: {
     params: {
@@ -49,9 +58,11 @@ type AudioAnnotatorState = {
   isPlaying: boolean,
   currentTime: number,
   duration: number,
-  progress: number,
+  frequencyRange: number,
   task: ?AnnotationTask,
   spectrogram: ?Image,
+  annotations: Array<Annotation>,
+  newAnnotation: ?Annotation,
 };
 
 class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState> {
@@ -59,6 +70,9 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
   audioPlayer: AudioPlayer;
 
   canvasRef: any;
+  isDrawing: boolean;
+  startDrawTime: number;
+  startDrawFrequency: number;
 
   constructor(props: AudioAnnotatorProps) {
     super(props);
@@ -71,12 +85,17 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
       isPlaying: false,
       currentTime: 0,
       duration: 0,
-      progress: 0,
+      frequencyRange: 0,
       task: undefined,
       spectrogram: undefined,
+      annotations: [],
+      newAnnotation: undefined,
     };
 
     this.canvasRef = React.createRef();
+    this.isDrawing = false;
+    this.startDrawTime = 0;
+    this.startDrawFrequency = 0;
   }
 
   componentDidMount() {
@@ -97,11 +116,13 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
         const startDate = new Date(task.boundaries.startTime);
         const endDate = new Date(task.boundaries.endTime)
         const duration: number = (endDate.getTime() - startDate.getTime()) / 1000;
+        const frequencyRange: number = task.boundaries.endFrequency - task.boundaries.startFrequency;
 
         // Finally, setting state
         this.setState({
           task,
           duration,
+          frequencyRange,
           isLoading: false,
           error: undefined,
           spectrogram,
@@ -136,10 +157,105 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
     }
   }
 
+  getTimeFromOffset = (clientX: number) => {
+    const canvas: HTMLCanvasElement = this.canvasRef.current;
+    const bounds: ClientRect = canvas.getBoundingClientRect();
+
+    // Offset: nb of pixels from the axis (left)
+    let offset: number = clientX - bounds.left;
+    if (clientX < bounds.left) {
+      offset = 0;
+    } else if (clientX > bounds.right) {
+      offset = canvas.width;
+    }
+
+    return this.state.duration * offset / canvas.width;
+  }
+
+  getFrequencyFromOffset = (clientY: number) => {
+    const canvas: HTMLCanvasElement = this.canvasRef.current;
+    const bounds: ClientRect = canvas.getBoundingClientRect();
+
+    // Offset: nb of pixels from the axis (bottom)
+    let offset: number = bounds.bottom - clientY;
+    if (clientY < bounds.top) {
+      offset = canvas.height;
+    } else if (clientY > bounds.bottom) {
+      offset = 0;
+    }
+
+    const minFreq: number = this.state.task ? this.state.task.boundaries.startFrequency : 0;
+    return minFreq + this.state.frequencyRange * offset / canvas.height;
+  }
+
   seekTo = (event: SyntheticMouseEvent<HTMLCanvasElement>) => {
-    const newTime = Math.floor(this.state.duration * event.nativeEvent.offsetX / event.currentTarget.width);
+    const newTime = this.getTimeFromOffset(event.clientX);
     this.audioPlayer.audioElement.currentTime = newTime;
     this.updateProgress(newTime);
+  }
+
+  onStartNewAnnotation = (event: SyntheticPointerEvent<HTMLCanvasElement>) => {
+    const newTime: number = this.getTimeFromOffset(event.clientX);
+    const newFrequency: number = this.getFrequencyFromOffset(event.clientY);
+
+    this.isDrawing = true;
+    this.startDrawTime = newTime;
+    this.startDrawFrequency = newFrequency;
+
+    const newAnnotation: Annotation = {
+      id: '',
+      annotation: '',
+      startTime: newTime,
+      endTime: newTime,
+      startFrequency: newFrequency,
+      endFrequency: newFrequency,
+    };
+
+    this.setState({newAnnotation});
+  }
+
+  computeNewAnnotation = (event: SyntheticPointerEvent<HTMLElement>) => {
+    const currentTime: number = this.getTimeFromOffset(event.clientX);
+    const currentFrequency: number = this.getFrequencyFromOffset(event.clientY);
+
+    const newAnnotation: Annotation = {
+      id: '',
+      annotation: '',
+      startTime: Math.min(currentTime, this.startDrawTime),
+      endTime: Math.max(currentTime, this.startDrawTime),
+      startFrequency: Math.min(currentFrequency, this.startDrawFrequency),
+      endFrequency: Math.max(currentFrequency, this.startDrawFrequency),
+    };
+    return newAnnotation;
+  }
+
+  onUpdateNewAnnotation = (event: SyntheticPointerEvent<HTMLElement>) => {
+    if (this.isDrawing) {
+      const newAnnotation: Annotation = this.computeNewAnnotation(event);
+      this.setState({newAnnotation});
+    }
+  }
+
+  onEndNewAnnotation = (event: SyntheticPointerEvent<HTMLElement>) => {
+    if (this.isDrawing) {
+      const maxId: ?number = this.state.annotations
+        .map(annotation => parseInt(annotation.id, 10))
+        .sort((a, b) => b - a)
+        .shift();
+
+      const newAnnotation: Annotation = Object.assign(
+        {},
+        this.computeNewAnnotation(event),
+        { id: maxId ? (maxId + 1).toString() : '1' }
+      );
+
+      this.isDrawing = false;
+
+      this.setState({
+        annotations: this.state.annotations.concat(newAnnotation),
+        newAnnotation: undefined,
+      });
+  }
   }
 
   playPause = () => {
@@ -153,10 +269,8 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
   }
 
   updateProgress = (seconds: number) => {
-    const progress = seconds / this.state.duration;
     this.setState({
       currentTime: seconds,
-      progress,
     }, this.renderCanvas);
   }
 
@@ -170,9 +284,12 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
     }
 
     // Progress bar
-    const newX: number = Math.floor(this.state.progress * canvas.width);
+    const newX: number = Math.floor(this.state.currentTime / this.state.duration * canvas.width);
     context.fillStyle = 'rgba(0, 0, 0)';
     context.fillRect(newX, 0, 1, canvas.height);
+
+    // New annotation
+    // @todo continue here
   }
 
   strPad = (nb: number) => {
@@ -216,7 +333,12 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
       };
 
       return (
-        <div className="annotator" ref={this.initSizes}>
+        <div
+          className="annotator"
+          onPointerMove={this.onUpdateNewAnnotation}
+          onPointerUp={this.onEndNewAnnotation}
+          ref={this.initSizes}
+        >
           <p><Link to={'/audio-annotator/legacy/' + this.props.match.params.annotation_task_id}>
             <button className="btn btn-submit" type="button">Switch to old annotator</button>
           </Link></p>
@@ -231,7 +353,10 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
             src={this.state.task.audioUrl}
           ></AudioPlayer>
 
-          <div className="workbench" style={styles.workbench}>
+          <div
+            className="workbench"
+            style={styles.workbench}
+          >
             <canvas
               className="canvas"
               ref={this.canvasRef}
@@ -239,6 +364,9 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
               width={WORKBENCH_WIDTH - Y_AXIS_SIZE}
               style={styles.canvas}
               onClick={this.seekTo}
+              onPointerDown={this.onStartNewAnnotation}
+              onPointerMove={this.onUpdateNewAnnotation}
+              onPointerUp={this.onEndNewAnnotation}
             ></canvas>
           </div>
 
@@ -254,9 +382,30 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
               {this.formatTimestamp(this.state.duration)}
             </p>
           </div>
+
+          <table className="annotations">
+            <tbody>
+              {this.state.annotations.map(annotation => this.renderAnnotation(annotation))}
+            </tbody>
+          </table>
         </div>
       );
     }
+  }
+
+  renderAnnotation = (annotation: Annotation) => {
+    return (
+      <tr key={annotation.id}>
+        <td>{annotation.id}</td>
+        <td>
+          {this.formatTimestamp(annotation.startTime)} &gt; {this.formatTimestamp(annotation.endTime)}
+        </td>
+        <td>
+          {annotation.startFrequency.toFixed(2)} &gt; {annotation.endFrequency.toFixed(2)} Hz
+        </td>
+        <td>{annotation.annotation}</td>
+      </tr>
+    );
   }
 }
 
