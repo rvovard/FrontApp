@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import request from 'superagent';
 
 import AudioPlayer from './AudioPlayer';
+import Workbench from './Workbench';
 
 import './css/font-awesome-4.7.0.min.css';
 import './css/annotator.css';
@@ -11,13 +12,6 @@ import './css/annotator.css';
 // API constants
 if (!process.env.REACT_APP_API_URL) throw new Error('REACT_APP_API_URL missing in env');
 const API_URL = process.env.REACT_APP_API_URL + '/annotation-task';
-
-// Component dimensions constants
-const WORKBENCH_HEIGHT: number = 600;
-const WORKBENCH_WIDTH: number = 1000;
-const LABELS_AREA_SIZE: number = 100;
-const X_AXIS_SIZE: number = 30;
-const Y_AXIS_SIZE: number = 30;
 
 
 type AnnotationTask = {
@@ -32,7 +26,7 @@ type AnnotationTask = {
   spectroUrls: any,
 };
 
-type Annotation = {
+export type Annotation = {
   id: string,
   annotation: string,
   startTime: number,
@@ -52,54 +46,32 @@ type AudioAnnotatorProps = {
 
 type AudioAnnotatorState = {
   error: ?string,
-  height: number,
-  width: number,
   isLoading: boolean,
   isPlaying: boolean,
   currentTime: number,
   duration: number,
   frequencyRange: number,
   task: ?AnnotationTask,
-  spectrogram: ?Image,
   annotations: Array<Annotation>,
-  newAnnotation: ?Annotation,
 };
 
 class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState> {
   audioContext: AudioContext;
   audioPlayer: AudioPlayer;
 
-  canvasRef: any;
-
-  isDrawing: boolean;
-  drawPxMove: number;
-  drawStartTime: number;
-  drawStartFrequency: number;
-
   constructor(props: AudioAnnotatorProps) {
     super(props);
 
     this.state = {
       error: undefined,
-      height: WORKBENCH_HEIGHT,
-      width: WORKBENCH_WIDTH,
       isLoading: true,
       isPlaying: false,
       currentTime: 0,
       duration: 0,
       frequencyRange: 0,
       task: undefined,
-      spectrogram: undefined,
       annotations: [],
-      newAnnotation: undefined,
     };
-
-    this.canvasRef = React.createRef();
-
-    this.isDrawing = false;
-    this.drawPxMove = 0;
-    this.drawStartTime = 0;
-    this.drawStartFrequency = 0;
   }
 
   componentDidMount() {
@@ -110,11 +82,6 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
       .set('Authorization', 'Bearer ' + this.props.app_token)
       .then(result => {
         const task: AnnotationTask = result.body.task;
-
-        // Handling spectrogram image
-        const spectrogram = new Image();
-        spectrogram.onload = this.renderCanvas;
-        spectrogram.src = task.spectroUrls['100%'];
 
         // Computing duration (in seconds)
         const startDate = new Date(task.boundaries.startTime);
@@ -129,7 +96,6 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
           frequencyRange,
           isLoading: false,
           error: undefined,
-          spectrogram,
         });
       })
       .catch(err => {
@@ -150,118 +116,9 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
       (err.response.body.detail ? ` - ${err.response.body.detail}` : '');
   }
 
-  initSizes = (wrapper: ?HTMLElement) => {
-    if (wrapper) {
-      const bounds: ClientRect = wrapper.getBoundingClientRect();
-      this.setState({width: bounds.width});
-
-      const canvas: HTMLCanvasElement = this.canvasRef.current;
-      canvas.height = this.state.height - LABELS_AREA_SIZE - Y_AXIS_SIZE;
-      canvas.width = bounds.width - X_AXIS_SIZE;
-    }
-  }
-
-  getTimeFromClientX = (clientX: number) => {
-    const canvas: HTMLCanvasElement = this.canvasRef.current;
-    const bounds: ClientRect = canvas.getBoundingClientRect();
-
-    // Offset: nb of pixels from the axis (left)
-    let offset: number = clientX - bounds.left;
-    if (clientX < bounds.left) {
-      offset = 0;
-    } else if (clientX > bounds.right) {
-      offset = canvas.width;
-    }
-
-    return this.state.duration * offset / canvas.width;
-  }
-
-  getFrequencyFromClientY = (clientY: number) => {
-    const canvas: HTMLCanvasElement = this.canvasRef.current;
-    const bounds: ClientRect = canvas.getBoundingClientRect();
-
-    // Offset: nb of pixels from the axis (bottom)
-    let offset: number = bounds.bottom - clientY;
-    if (clientY < bounds.top) {
-      offset = canvas.height;
-    } else if (clientY > bounds.bottom) {
-      offset = 0;
-    }
-
-    const minFreq: number = this.state.task ? this.state.task.boundaries.startFrequency : 0;
-    return minFreq + this.state.frequencyRange * offset / canvas.height;
-  }
-
-  seekTo = (event: SyntheticMouseEvent<HTMLCanvasElement>) => {
-    const newTime = this.getTimeFromClientX(event.clientX);
+  seekTo = (newTime: number) => {
     this.audioPlayer.audioElement.currentTime = newTime;
     this.updateProgress(newTime);
-  }
-
-  onStartNewAnnotation = (event: SyntheticPointerEvent<HTMLCanvasElement>) => {
-    const newTime: number = this.getTimeFromClientX(event.clientX);
-    const newFrequency: number = this.getFrequencyFromClientY(event.clientY);
-
-    this.isDrawing = true;
-    this.drawPxMove = 0;
-    this.drawStartTime = newTime;
-    this.drawStartFrequency = newFrequency;
-
-    const newAnnotation: Annotation = {
-      id: '',
-      annotation: '',
-      startTime: newTime,
-      endTime: newTime,
-      startFrequency: newFrequency,
-      endFrequency: newFrequency,
-    };
-
-    this.setState({newAnnotation});
-  }
-
-  computeNewAnnotation = (event: SyntheticPointerEvent<HTMLElement>) => {
-    const currentTime: number = this.getTimeFromClientX(event.clientX);
-    const currentFrequency: number = this.getFrequencyFromClientY(event.clientY);
-
-    const newAnnotation: Annotation = {
-      id: '',
-      annotation: '',
-      startTime: Math.min(currentTime, this.drawStartTime),
-      endTime: Math.max(currentTime, this.drawStartTime),
-      startFrequency: Math.min(currentFrequency, this.drawStartFrequency),
-      endFrequency: Math.max(currentFrequency, this.drawStartFrequency),
-    };
-    return newAnnotation;
-  }
-
-  onUpdateNewAnnotation = (event: SyntheticPointerEvent<HTMLElement>) => {
-    if (this.isDrawing && ++this.drawPxMove > 2) {
-      const newAnnotation: Annotation = this.computeNewAnnotation(event);
-      this.setState({newAnnotation}, this.renderCanvas);
-    }
-  }
-
-  onEndNewAnnotation = (event: SyntheticPointerEvent<HTMLElement>) => {
-    if (this.isDrawing && this.drawPxMove > 2) {
-      const maxId: ?number = this.state.annotations
-        .map(annotation => parseInt(annotation.id, 10))
-        .sort((a, b) => b - a)
-        .shift();
-
-      const newAnnotation: Annotation = Object.assign(
-        {},
-        this.computeNewAnnotation(event),
-        { id: maxId ? (maxId + 1).toString() : '1' }
-      );
-
-      this.setState({
-        annotations: this.state.annotations.concat(newAnnotation),
-        newAnnotation: undefined,
-      }, this.renderCanvas);
-    }
-
-    this.isDrawing = false;
-    this.drawPxMove = 0;
   }
 
   playPause = () => {
@@ -277,39 +134,24 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
   updateProgress = (seconds: number) => {
     this.setState({
       currentTime: seconds,
-    }, this.renderCanvas);
+    });
   }
 
-  renderCanvas = () => {
-    const canvas: HTMLCanvasElement = this.canvasRef.current;
-    const context: CanvasRenderingContext2D = canvas.getContext('2d');
+  saveAnnotation = (annotation: Annotation) => {
+    const maxId: ?number = this.state.annotations
+      .map(ann => parseInt(ann.id, 10))
+      .sort((a, b) => b - a)
+      .shift();
 
-    // Draw spectro image
-    if (this.state.spectrogram) {
-      context.drawImage(this.state.spectrogram, 0, 0, canvas.width, canvas.height);
-    }
+    const newAnnotation: Annotation = Object.assign(
+      {},
+      annotation,
+      { id: maxId ? (maxId + 1).toString() : '1' }
+    );
 
-    // Progress bar
-    const newX: number = Math.floor(this.state.currentTime / this.state.duration * canvas.width);
-    context.fillStyle = 'rgba(0, 0, 0)';
-    context.fillRect(newX, 0, 1, canvas.height);
-
-    const renderAnnotation = (ann: Annotation) => {
-      const x: number = Math.floor(canvas.width * ann.startTime / this.state.duration);
-      const y: number = Math.floor(canvas.height - canvas.height * ann.startFrequency / this.state.frequencyRange);
-      const width: number = Math.floor(canvas.width * (ann.endTime - ann.startTime) / this.state.duration);
-      const height: number = - Math.floor(canvas.height * (ann.endFrequency - ann.startFrequency) / this.state.frequencyRange);
-      context.strokeStyle = 'blue';
-      context.strokeRect(x, y, width, height);
-    };
-
-    // New annotation
-    if (this.state.newAnnotation) {
-      renderAnnotation(this.state.newAnnotation);
-    }
-
-    // All annotations
-    this.state.annotations.forEach(ann => renderAnnotation(ann));
+    this.setState({
+      annotations: this.state.annotations.concat(newAnnotation),
+    });
   }
 
   strPad = (nb: number) => {
@@ -341,24 +183,9 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
       return <p>Unknown error while loading task.</p>
     } else {
       const playStatusClass = this.state.isPlaying ? "fa-pause-circle" : "fa-play-circle";
-      const styles = {
-        workbench: {
-          height: this.state.height,
-          width: this.state.width,
-        },
-        canvas: {
-          top: LABELS_AREA_SIZE,
-          left: Y_AXIS_SIZE,
-        },
-      };
 
       return (
-        <div
-          className="annotator"
-          onPointerMove={this.onUpdateNewAnnotation}
-          onPointerUp={this.onEndNewAnnotation}
-          ref={this.initSizes}
-        >
+        <div className="annotator">
           <p><Link to={'/audio-annotator/legacy/' + this.props.match.params.annotation_task_id}>
             <button className="btn btn-submit" type="button">Switch to old annotator</button>
           </Link></p>
@@ -373,22 +200,17 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
             src={this.state.task.audioUrl}
           ></AudioPlayer>
 
-          <div
-            className="workbench"
-            style={styles.workbench}
+          <Workbench
+            currentTime={this.state.currentTime}
+            duration={this.state.duration}
+            startFrequency={this.state.task.boundaries.startFrequency}
+            frequencyRange={this.state.frequencyRange}
+            spectrogramUrl={this.state.task.spectroUrls['100%']}
+            annotations={this.state.annotations}
+            onAnnotationCreated={this.saveAnnotation}
+            onSeek={this.seekTo}
           >
-            <canvas
-              className="canvas"
-              ref={this.canvasRef}
-              height={WORKBENCH_HEIGHT - LABELS_AREA_SIZE - X_AXIS_SIZE}
-              width={WORKBENCH_WIDTH - Y_AXIS_SIZE}
-              style={styles.canvas}
-              onClick={this.seekTo}
-              onPointerDown={this.onStartNewAnnotation}
-              onPointerMove={this.onUpdateNewAnnotation}
-              onPointerUp={this.onEndNewAnnotation}
-            ></canvas>
-          </div>
+          </Workbench>
 
           <div className="controls">
             <button
