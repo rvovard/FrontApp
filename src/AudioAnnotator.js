@@ -70,9 +70,11 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
   audioPlayer: AudioPlayer;
 
   canvasRef: any;
+
   isDrawing: boolean;
-  startDrawTime: number;
-  startDrawFrequency: number;
+  drawPxMove: number;
+  drawStartTime: number;
+  drawStartFrequency: number;
 
   constructor(props: AudioAnnotatorProps) {
     super(props);
@@ -93,9 +95,11 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
     };
 
     this.canvasRef = React.createRef();
+
     this.isDrawing = false;
-    this.startDrawTime = 0;
-    this.startDrawFrequency = 0;
+    this.drawPxMove = 0;
+    this.drawStartTime = 0;
+    this.drawStartFrequency = 0;
   }
 
   componentDidMount() {
@@ -157,7 +161,7 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
     }
   }
 
-  getTimeFromOffset = (clientX: number) => {
+  getTimeFromClientX = (clientX: number) => {
     const canvas: HTMLCanvasElement = this.canvasRef.current;
     const bounds: ClientRect = canvas.getBoundingClientRect();
 
@@ -172,7 +176,7 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
     return this.state.duration * offset / canvas.width;
   }
 
-  getFrequencyFromOffset = (clientY: number) => {
+  getFrequencyFromClientY = (clientY: number) => {
     const canvas: HTMLCanvasElement = this.canvasRef.current;
     const bounds: ClientRect = canvas.getBoundingClientRect();
 
@@ -189,18 +193,19 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
   }
 
   seekTo = (event: SyntheticMouseEvent<HTMLCanvasElement>) => {
-    const newTime = this.getTimeFromOffset(event.clientX);
+    const newTime = this.getTimeFromClientX(event.clientX);
     this.audioPlayer.audioElement.currentTime = newTime;
     this.updateProgress(newTime);
   }
 
   onStartNewAnnotation = (event: SyntheticPointerEvent<HTMLCanvasElement>) => {
-    const newTime: number = this.getTimeFromOffset(event.clientX);
-    const newFrequency: number = this.getFrequencyFromOffset(event.clientY);
+    const newTime: number = this.getTimeFromClientX(event.clientX);
+    const newFrequency: number = this.getFrequencyFromClientY(event.clientY);
 
     this.isDrawing = true;
-    this.startDrawTime = newTime;
-    this.startDrawFrequency = newFrequency;
+    this.drawPxMove = 0;
+    this.drawStartTime = newTime;
+    this.drawStartFrequency = newFrequency;
 
     const newAnnotation: Annotation = {
       id: '',
@@ -215,29 +220,29 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
   }
 
   computeNewAnnotation = (event: SyntheticPointerEvent<HTMLElement>) => {
-    const currentTime: number = this.getTimeFromOffset(event.clientX);
-    const currentFrequency: number = this.getFrequencyFromOffset(event.clientY);
+    const currentTime: number = this.getTimeFromClientX(event.clientX);
+    const currentFrequency: number = this.getFrequencyFromClientY(event.clientY);
 
     const newAnnotation: Annotation = {
       id: '',
       annotation: '',
-      startTime: Math.min(currentTime, this.startDrawTime),
-      endTime: Math.max(currentTime, this.startDrawTime),
-      startFrequency: Math.min(currentFrequency, this.startDrawFrequency),
-      endFrequency: Math.max(currentFrequency, this.startDrawFrequency),
+      startTime: Math.min(currentTime, this.drawStartTime),
+      endTime: Math.max(currentTime, this.drawStartTime),
+      startFrequency: Math.min(currentFrequency, this.drawStartFrequency),
+      endFrequency: Math.max(currentFrequency, this.drawStartFrequency),
     };
     return newAnnotation;
   }
 
   onUpdateNewAnnotation = (event: SyntheticPointerEvent<HTMLElement>) => {
-    if (this.isDrawing) {
+    if (this.isDrawing && ++this.drawPxMove > 2) {
       const newAnnotation: Annotation = this.computeNewAnnotation(event);
-      this.setState({newAnnotation});
+      this.setState({newAnnotation}, this.renderCanvas);
     }
   }
 
   onEndNewAnnotation = (event: SyntheticPointerEvent<HTMLElement>) => {
-    if (this.isDrawing) {
+    if (this.isDrawing && this.drawPxMove > 2) {
       const maxId: ?number = this.state.annotations
         .map(annotation => parseInt(annotation.id, 10))
         .sort((a, b) => b - a)
@@ -249,13 +254,14 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
         { id: maxId ? (maxId + 1).toString() : '1' }
       );
 
-      this.isDrawing = false;
-
       this.setState({
         annotations: this.state.annotations.concat(newAnnotation),
         newAnnotation: undefined,
-      });
-  }
+      }, this.renderCanvas);
+    }
+
+    this.isDrawing = false;
+    this.drawPxMove = 0;
   }
 
   playPause = () => {
@@ -288,8 +294,22 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
     context.fillStyle = 'rgba(0, 0, 0)';
     context.fillRect(newX, 0, 1, canvas.height);
 
+    const renderAnnotation = (ann: Annotation) => {
+      const x: number = Math.floor(canvas.width * ann.startTime / this.state.duration);
+      const y: number = Math.floor(canvas.height - canvas.height * ann.startFrequency / this.state.frequencyRange);
+      const width: number = Math.floor(canvas.width * (ann.endTime - ann.startTime) / this.state.duration);
+      const height: number = - Math.floor(canvas.height * (ann.endFrequency - ann.startFrequency) / this.state.frequencyRange);
+      context.strokeStyle = 'blue';
+      context.strokeRect(x, y, width, height);
+    };
+
     // New annotation
-    // @todo continue here
+    if (this.state.newAnnotation) {
+      renderAnnotation(this.state.newAnnotation);
+    }
+
+    // All annotations
+    this.state.annotations.forEach(ann => renderAnnotation(ann));
   }
 
   strPad = (nb: number) => {
