@@ -2,10 +2,11 @@
 import React, { Component } from 'react';
 
 import type { Annotation } from './AudioAnnotator';
+import Region from './Region';
 
 // Component dimensions constants
-const WORKBENCH_HEIGHT: number = 600;
-const WORKBENCH_WIDTH: number = 1000;
+const CANVAS_HEIGHT: number = 500;
+const CANVAS_WIDTH: number = 950;
 const LABELS_AREA_SIZE: number = 100;
 const X_AXIS_SIZE: number = 30;
 const Y_AXIS_SIZE: number = 30;
@@ -18,11 +19,17 @@ type WorkbenchProps = {
   frequencyRange: number,
   spectrogramUrl: string,
   annotations: Array<Annotation>,
-  onAnnotationCreated: any,
+  onAnnotationCreated: (Annotation) => void,
+  onAnnotationUpdated: (Annotation) => void,
+  onAnnotationDeleted: (Annotation) => void,
   onSeek: any,
 };
 
 type WorkbenchState = {
+  canvasWidth: number,
+  canvasHeight: number,
+  timePxRatio: number,
+  freqPxRatio: number,
   spectrogram: ?Image,
   newAnnotation: ?Annotation,
 };
@@ -40,6 +47,10 @@ class Workbench extends Component<WorkbenchProps, WorkbenchState> {
     super(props);
 
     this.state = {
+      canvasWidth: CANVAS_WIDTH,
+      canvasHeight: CANVAS_HEIGHT,
+      timePxRatio: CANVAS_WIDTH / props.duration,
+      freqPxRatio: CANVAS_HEIGHT / props.frequencyRange,
       spectrogram: undefined,
       newAnnotation: undefined,
     };
@@ -77,8 +88,18 @@ class Workbench extends Component<WorkbenchProps, WorkbenchState> {
     if (wrapper) {
       const bounds: ClientRect = wrapper.getBoundingClientRect();
       const canvas: HTMLCanvasElement = this.canvasRef.current;
-      canvas.height = bounds.height - LABELS_AREA_SIZE - Y_AXIS_SIZE;
-      canvas.width = bounds.width - X_AXIS_SIZE;
+      const canvasWidth: number = bounds.width - X_AXIS_SIZE;
+      const canvasHeight: number = bounds.height - LABELS_AREA_SIZE - Y_AXIS_SIZE;
+
+      canvas.width = canvasWidth;
+      canvas.height = canvasHeight;
+
+      this.setState({
+        canvasWidth,
+        canvasHeight,
+        timePxRatio: canvasWidth / this.props.duration,
+        freqPxRatio: canvasHeight / this.props.frequencyRange,
+      });
     }
   }
 
@@ -94,7 +115,7 @@ class Workbench extends Component<WorkbenchProps, WorkbenchState> {
       offset = canvas.width;
     }
 
-    return this.props.duration * offset / canvas.width;
+    return offset / this.state.timePxRatio;
   }
 
   getFrequencyFromClientY = (clientY: number) => {
@@ -109,7 +130,7 @@ class Workbench extends Component<WorkbenchProps, WorkbenchState> {
       offset = 0;
     }
 
-    return this.props.startFrequency + this.props.frequencyRange * offset / canvas.height;
+    return this.props.startFrequency + offset / this.state.freqPxRatio;
   }
 
   seekTo = (event: SyntheticPointerEvent<HTMLCanvasElement>) => {
@@ -185,10 +206,10 @@ class Workbench extends Component<WorkbenchProps, WorkbenchState> {
     context.fillRect(newX, 0, 1, canvas.height);
 
     const renderAnnotation = (ann: Annotation) => {
-      const x: number = Math.floor(canvas.width * ann.startTime / this.props.duration);
-      const y: number = Math.floor(canvas.height - canvas.height * ann.startFrequency / this.props.frequencyRange);
-      const width: number = Math.floor(canvas.width * (ann.endTime - ann.startTime) / this.props.duration);
-      const height: number = - Math.floor(canvas.height * (ann.endFrequency - ann.startFrequency) / this.props.frequencyRange);
+      const x: number = Math.floor(ann.startTime * this.state.timePxRatio);
+      const y: number = Math.floor(canvas.height - ann.startFrequency * this.state.freqPxRatio);
+      const width: number = Math.floor((ann.endTime - ann.startTime) * this.state.timePxRatio);
+      const height: number = - Math.floor((ann.endFrequency - ann.startFrequency) * this.state.freqPxRatio);
       context.strokeStyle = 'blue';
       context.strokeRect(x, y, width, height);
     };
@@ -199,11 +220,11 @@ class Workbench extends Component<WorkbenchProps, WorkbenchState> {
     }
 
     // All annotations
-    this.props.annotations.forEach(ann => renderAnnotation(ann));
+    // this.props.annotations.forEach(ann => renderAnnotation(ann));
   }
 
   render() {
-    const canvasStyle = {
+    const style = {
       top: LABELS_AREA_SIZE,
       left: Y_AXIS_SIZE,
     };
@@ -216,13 +237,33 @@ class Workbench extends Component<WorkbenchProps, WorkbenchState> {
         <canvas
           className="canvas"
           ref={this.canvasRef}
-          height={WORKBENCH_HEIGHT - LABELS_AREA_SIZE - X_AXIS_SIZE}
-          width={WORKBENCH_WIDTH - Y_AXIS_SIZE}
-          style={canvasStyle}
+          height={CANVAS_HEIGHT}
+          width={CANVAS_WIDTH}
+          style={style}
           onClick={this.seekTo}
           onPointerDown={this.onStartNewAnnotation}
         ></canvas>
+
+        {this.props.annotations.map(annotation => this.renderRegion(annotation))}
       </div>
+    );
+  }
+
+  renderRegion = (ann: Annotation) => {
+    const offsetTop: number = LABELS_AREA_SIZE + this.state.canvasHeight - ann.endFrequency * this.state.freqPxRatio;
+    const offsetLeft: number = Y_AXIS_SIZE + ann.startTime * this.state.timePxRatio;
+
+    return (
+      <Region
+        key={ann.id}
+        annotation={ann}
+        timePxRatio={this.state.timePxRatio}
+        freqPxRatio={this.state.freqPxRatio}
+        offsetTop={offsetTop}
+        offsetLeft={offsetLeft}
+        onRegionDeleted={this.props.onAnnotationDeleted}
+        onRegionMoved={this.props.onAnnotationUpdated}
+       ></Region>
     );
   }
 }

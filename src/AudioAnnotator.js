@@ -154,6 +154,21 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
     });
   }
 
+  updateAnnotation = (annotation: Annotation) => {
+    const annotations: Array<Annotation> = this.state.annotations
+      .filter(ann => ann.id !== annotation.id)
+      .concat(annotation);
+
+    this.setState({annotations});
+  }
+
+  deleteAnnotation = (annotation: Annotation) => {
+    const annotations: Array<Annotation> = this.state.annotations
+      .filter(ann => ann.id !== annotation.id);
+
+    this.setState({annotations});
+  }
+
   strPad = (nb: number) => {
     if (nb < 10) {
       return '0' + nb.toFixed(0);
@@ -208,6 +223,8 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
             spectrogramUrl={this.state.task.spectroUrls['100%']}
             annotations={this.state.annotations}
             onAnnotationCreated={this.saveAnnotation}
+            onAnnotationUpdated={this.updateAnnotation}
+            onAnnotationDeleted={this.deleteAnnotation}
             onSeek={this.seekTo}
           >
           </Workbench>

@@ -17,6 +17,21 @@
   cursor: crosshair;
 }
 
+.region {
+  position: absolute;
+}
+
+.region-header {
+  width: 100%;
+  border: 1px solid #006079;
+  background-color: #006079;
+}
+
+.region-body {
+  width: 100%;
+  border: 1px solid #006079;
+}
+
 .controls {
   clear: both;
 }
