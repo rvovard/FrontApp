@@ -7,7 +7,7 @@ import Region from './Region';
 // Component dimensions constants
 const CANVAS_HEIGHT: number = 500;
 const CANVAS_WIDTH: number = 950;
-const LABELS_AREA_SIZE: number = 100;
+const LABELS_AREA_SIZE: number = 50;
 const X_AXIS_SIZE: number = 30;
 const Y_AXIS_SIZE: number = 30;
 
@@ -22,6 +22,8 @@ type WorkbenchProps = {
   onAnnotationCreated: (Annotation) => void,
   onAnnotationUpdated: (Annotation) => void,
   onAnnotationDeleted: (Annotation) => void,
+  onAnnotationPlayed: (Annotation) => void,
+  onAnnotationSelected: (Annotation) => void,
   onSeek: any,
 };
 
@@ -153,6 +155,7 @@ class Workbench extends Component<WorkbenchProps, WorkbenchState> {
       endTime: newTime,
       startFrequency: newFrequency,
       endFrequency: newFrequency,
+      active: false,
     };
 
     this.setState({newAnnotation});
@@ -169,6 +172,7 @@ class Workbench extends Component<WorkbenchProps, WorkbenchState> {
       endTime: Math.max(currentTime, this.drawStartTime),
       startFrequency: Math.min(currentFrequency, this.drawStartFrequency),
       endFrequency: Math.max(currentFrequency, this.drawStartFrequency),
+      active: false,
     };
     return newAnnotation;
   }
@@ -205,22 +209,16 @@ class Workbench extends Component<WorkbenchProps, WorkbenchState> {
     context.fillStyle = 'rgba(0, 0, 0)';
     context.fillRect(newX, 0, 1, canvas.height);
 
-    const renderAnnotation = (ann: Annotation) => {
+    // Render new annotation
+    if (this.state.newAnnotation) {
+      const ann: Annotation = this.state.newAnnotation;
       const x: number = Math.floor(ann.startTime * this.state.timePxRatio);
       const y: number = Math.floor(canvas.height - ann.startFrequency * this.state.freqPxRatio);
       const width: number = Math.floor((ann.endTime - ann.startTime) * this.state.timePxRatio);
       const height: number = - Math.floor((ann.endFrequency - ann.startFrequency) * this.state.freqPxRatio);
       context.strokeStyle = 'blue';
       context.strokeRect(x, y, width, height);
-    };
-
-    // New annotation
-    if (this.state.newAnnotation) {
-      renderAnnotation(this.state.newAnnotation);
     }
-
-    // All annotations
-    // this.props.annotations.forEach(ann => renderAnnotation(ann));
   }
 
   render() {
@@ -263,6 +261,8 @@ class Workbench extends Component<WorkbenchProps, WorkbenchState> {
         offsetLeft={offsetLeft}
         onRegionDeleted={this.props.onAnnotationDeleted}
         onRegionMoved={this.props.onAnnotationUpdated}
+        onRegionPlayed={this.props.onAnnotationPlayed}
+        onRegionClicked={this.props.onAnnotationSelected}
        ></Region>
     );
   }

@@ -33,6 +33,7 @@ export type Annotation = {
   endTime: number,
   startFrequency: number,
   endFrequency: number,
+  active: boolean;
 };
 
 type AudioAnnotatorProps = {
@@ -48,10 +49,12 @@ type AudioAnnotatorState = {
   error: ?string,
   isLoading: boolean,
   isPlaying: boolean,
+  stopTime: ?number,
   currentTime: number,
   duration: number,
   frequencyRange: number,
   task: ?AnnotationTask,
+  taskStartTime: number,
   annotations: Array<Annotation>,
 };
 
@@ -62,14 +65,18 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
   constructor(props: AudioAnnotatorProps) {
     super(props);
 
+    const now: Date = new Date();
+
     this.state = {
       error: undefined,
       isLoading: true,
       isPlaying: false,
+      stopTime: undefined,
       currentTime: 0,
       duration: 0,
       frequencyRange: 0,
       task: undefined,
+      taskStartTime: now.getTime(),
       annotations: [],
     };
   }
@@ -123,18 +130,40 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
 
   playPause = () => {
     if (this.audioPlayer.audioElement.paused) {
-      this.setState({isPlaying: true});
-      this.audioPlayer.audioElement.play();
+      this.play();
     } else {
-      this.setState({isPlaying: false});
-      this.audioPlayer.audioElement.pause();
+      this.pause();
     }
   }
 
-  updateProgress = (seconds: number) => {
+  play = (annotation: ?Annotation) => {
+    if (annotation) {
+      this.audioPlayer.audioElement.currentTime = annotation.startTime;
+      this.activateAnnotation(annotation);
+    }
+    this.audioPlayer.audioElement.play();
+
     this.setState({
-      currentTime: seconds,
+      isPlaying: true,
+      stopTime: annotation ? annotation.endTime : undefined,
     });
+  }
+
+  pause = () => {
+    this.audioPlayer.audioElement.pause();
+
+    this.setState({
+      isPlaying: false,
+      stopTime: undefined,
+    });
+  }
+
+  updateProgress = (seconds: number) => {
+    if (this.state.stopTime && (seconds > this.state.stopTime)) {
+      this.pause();
+    } else {
+      this.setState({currentTime: seconds});
+    }
   }
 
   saveAnnotation = (annotation: Annotation) => {
@@ -144,14 +173,10 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
       .shift();
 
     const newAnnotation: Annotation = Object.assign(
-      {},
-      annotation,
-      { id: maxId ? (maxId + 1).toString() : '1' }
+      {}, annotation, { id: maxId ? (maxId + 1).toString() : '1' }
     );
 
-    this.setState({
-      annotations: this.state.annotations.concat(newAnnotation),
-    });
+    this.activateAnnotation(newAnnotation);
   }
 
   updateAnnotation = (annotation: Annotation) => {
@@ -167,6 +192,80 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
       .filter(ann => ann.id !== annotation.id);
 
     this.setState({annotations});
+  }
+
+  activateAnnotation = (annotation: Annotation) => {
+    const activated: Annotation = Object.assign(
+      {}, annotation, { active: true }
+    );
+    const annotations: Array<Annotation> = this.state.annotations
+      .filter(ann => ann.id !== activated.id)
+      .map(ann => Object.assign({}, ann, { active: false }))
+      .concat(activated)
+      .sort((a, b) => a.startTime - b.startTime);
+
+    this.setState({annotations});
+  }
+
+  toggleTag = (tag: string) => {
+    const activeAnn: ?Annotation = this.state.annotations
+      .find(ann => ann.active);
+
+    if (activeAnn) {
+      const newTag: string = (activeAnn.annotation === tag) ? '' : tag;
+      const newAnnotation: Annotation = Object.assign(
+        {}, activeAnn, { annotation: newTag, }
+      );
+      const annotations: Array<Annotation> = this.state.annotations
+        .filter(ann => !ann.active)
+        .concat(newAnnotation);
+
+      this.setState({annotations});
+    }
+  }
+
+  submitAnnotations = () => {
+    const taskId: number = this.props.match.params.annotation_task_id;
+
+    const cleanAnnotations = this.state.annotations.map(ann => {
+      return {
+        id: ann.id,
+        start: ann.startTime,
+        end: ann.endTime,
+        startFrequency: ann.startFrequency,
+        endFrequency: ann.endFrequency,
+      };
+    });
+    const now: Date = new Date();
+    const taskStartTime: number = Math.floor(this.state.taskStartTime / 1000);
+    const taskEndTime: number = Math.floor(now.getTime() / 1000);
+
+    request.post(API_URL + '/' + taskId.toString() + '/update-results')
+      .set('Authorization', 'Bearer ' + this.props.app_token)
+      .send({
+        annotations: cleanAnnotations,
+        task_start_time: taskStartTime,
+        task_end_time: taskEndTime,
+      })
+      .then(result => {
+        const nextTask: number = result.body.next_task;
+        const campaignId: number = result.body.campaign_id;
+
+        if (nextTask) {
+          window.location.href = '/audio-annotator/' + nextTask.toString();
+        } else {
+          window.location.href = '/annotation_tasks/' + campaignId.toString();
+        }
+      })
+      .catch(err => {
+        if (err.status && err.status === 401) {
+          // Server returned 401 which means token was revoked
+          document.cookie = 'token=;max-age=0';
+          window.location.reload();
+        } else {
+          this.setState({isLoading: false, error: this.buildErrorMessage(err)});
+        }
+      });
   }
 
   strPad = (nb: number) => {
@@ -225,13 +324,15 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
             onAnnotationCreated={this.saveAnnotation}
             onAnnotationUpdated={this.updateAnnotation}
             onAnnotationDeleted={this.deleteAnnotation}
+            onAnnotationSelected={this.activateAnnotation}
+            onAnnotationPlayed={this.play}
             onSeek={this.seekTo}
           >
           </Workbench>
 
-          <div className="controls">
+          <div className="controls clearfix">
             <button
-              className={`btn-play fa ${playStatusClass}`}
+              className={`btn-simple btn-play fa ${playStatusClass}`}
               onClick={this.playPause}
             ></button>
 
@@ -242,20 +343,71 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
             </p>
           </div>
 
-          <table className="annotations">
-            <tbody>
-              {this.state.annotations.map(annotation => this.renderAnnotation(annotation))}
-            </tbody>
-          </table>
+          <div className="data">
+            {this.renderActiveAnnotation()}
+            <div className="data-all">
+              <div>
+                <button
+                  className="btn btn-submit"
+                  onClick={this.submitAnnotations}
+                  type="button"
+                >Submit &amp; load next recording</button>
+              </div>
+              <table className="annotations table table-hover">
+                <tbody>
+                  {this.state.annotations.map(annotation => this.renderListAnnotation(annotation))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
         </div>
       );
     }
   }
 
-  renderAnnotation = (annotation: Annotation) => {
+  renderActiveAnnotation = () => {
+    const activeAnn: ?Annotation = this.state.annotations.find(ann => ann.active);
+
+    if (activeAnn && this.state.task) {
+      const ann: Annotation = activeAnn;
+      const task: AnnotationTask = this.state.task;
+
+      const tags = task.annotationTags.map((tag, idx) => (
+        <button
+          key={`tag${idx.toString()}`}
+          className={`btn ${(ann.annotation === tag) ? 'btn-outline-primary' : 'btn-primary'}`}
+          onClick={() => this.toggleTag(tag)}
+          type="button"
+        >{tag}</button>
+      ));
+
+      return (
+        <div className="data-active">
+          <p>
+            Start: {this.formatTimestamp(ann.startTime)} - 
+            End: {this.formatTimestamp(ann.endTime)}<br />
+            Min: {ann.startFrequency.toFixed(2)} - 
+            Max: {ann.endFrequency.toFixed(2)}
+          </p>
+          <p>{tags}</p>
+        </div>
+      );
+    } else {
+      return (
+        <div className="data-active">
+          <p>No selected annotation</p>
+        </div>
+      );
+    }
+  }
+
+  renderListAnnotation = (annotation: Annotation) => {
     return (
-      <tr key={annotation.id}>
-        <td>{annotation.id}</td>
+      <tr
+        key={`listann${annotation.id}`}
+        onClick={() => this.activateAnnotation(annotation)}
+      >
         <td>
           {this.formatTimestamp(annotation.startTime)} &gt; {this.formatTimestamp(annotation.endTime)}
         </td>

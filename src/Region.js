@@ -4,8 +4,8 @@ import React, { Component } from 'react';
 import type { Annotation } from './AudioAnnotator';
 
 // Component dimensions constants
-const HEADER_HEIGHT: number = 10;
-const HEADER_MARGIN: number = 5;
+const HEADER_HEIGHT: number = 18;
+const HEADER_MARGIN: number = 3;
 
 type RegionProps = {
   annotation: Annotation,
@@ -15,6 +15,8 @@ type RegionProps = {
   offsetLeft: number,
   onRegionDeleted: (Annotation) => void,
   onRegionMoved: (Annotation) => void,
+  onRegionPlayed: (Annotation) => void,
+  onRegionClicked: (Annotation) => void,
 };
 
 type RegionState = {
@@ -42,6 +44,18 @@ class Region extends Component<RegionProps, RegionState> {
     };
   }
 
+  playAnnotation = () => {
+    this.props.onRegionPlayed(this.props.annotation);
+  }
+
+  deleteAnnotation = () => {
+    this.props.onRegionDeleted(this.props.annotation);
+  }
+
+  selectAnnotation = () => {
+    this.props.onRegionClicked(this.props.annotation);
+  }
+
   render() {
     const styles = {
       wrapper: {
@@ -59,10 +73,34 @@ class Region extends Component<RegionProps, RegionState> {
       },
     };
 
+    const activeClass = this.props.annotation.active ? "active" : "inactive";
+
     return (
-      <div className="region" style={styles.wrapper}>
-        <p className="region-header" style={styles.header}>{this.props.annotation.annotation}</p>
-        <div className="region-body" style={styles.body}></div>
+      <div
+        className="region"
+        style={styles.wrapper}
+      >
+        <p
+          className={`region-header region-header--${activeClass}`}
+          style={styles.header}
+        >
+          <button
+            className="btn-simple fa fa-play-circle"
+            onClick={this.playAnnotation}
+          ></button>
+          <span
+            onClick={this.selectAnnotation}
+          >{this.props.annotation.annotation}</span>
+          <button
+            className="btn-simple fa fa-times-circle"
+            onClick={this.deleteAnnotation}
+          ></button>
+        </p>
+
+        <div
+          className={`region-body region-body--${activeClass}`}
+          style={styles.body}
+        ></div>
       </div>
     );
   }
