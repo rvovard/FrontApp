@@ -299,10 +299,13 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
       const playStatusClass = this.state.isPlaying ? "fa-pause-circle" : "fa-play-circle";
 
       return (
-        <div className="annotator">
-          <p><Link to={'/audio-annotator/legacy/' + this.props.match.params.annotation_task_id}>
-            <button className="btn btn-submit" type="button">Switch to old annotator</button>
-          </Link></p>
+        <div className="annotator container-fluid">
+          <div className="row">
+            <h1 className="col-sm-9">Ocean Data Explorer</h1>
+            <p className="col-sm-3 text-right"><Link to={'/audio-annotator/legacy/' + this.props.match.params.annotation_task_id}>
+              Switch to old annotator
+            </Link></p>
+          </div>
 
           <AudioPlayer
             // controls
@@ -314,46 +317,57 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
             src={this.state.task.audioUrl}
           ></AudioPlayer>
 
-          <Workbench
-            currentTime={this.state.currentTime}
-            duration={this.state.duration}
-            startFrequency={this.state.task.boundaries.startFrequency}
-            frequencyRange={this.state.frequencyRange}
-            spectrogramUrl={this.state.task.spectroUrls['100%']}
-            annotations={this.state.annotations}
-            onAnnotationCreated={this.saveAnnotation}
-            onAnnotationUpdated={this.updateAnnotation}
-            onAnnotationDeleted={this.deleteAnnotation}
-            onAnnotationSelected={this.activateAnnotation}
-            onAnnotationPlayed={this.play}
-            onSeek={this.seekTo}
-          >
-          </Workbench>
+          <div className="row">
+            <Workbench
+              currentTime={this.state.currentTime}
+              duration={this.state.duration}
+              startFrequency={this.state.task.boundaries.startFrequency}
+              frequencyRange={this.state.frequencyRange}
+              spectrogramUrl={this.state.task.spectroUrls['100%']}
+              annotations={this.state.annotations}
+              onAnnotationCreated={this.saveAnnotation}
+              onAnnotationUpdated={this.updateAnnotation}
+              onAnnotationDeleted={this.deleteAnnotation}
+              onAnnotationSelected={this.activateAnnotation}
+              onAnnotationPlayed={this.play}
+              onSeek={this.seekTo}
+            >
+            </Workbench>
+          </div>
 
-          <div className="controls clearfix">
-            <button
-              className={`btn-simple btn-play fa ${playStatusClass}`}
-              onClick={this.playPause}
-            ></button>
+          <div className="row controls">
+            <p className="col-sm-4">
+              <button
+                className={`btn-simple btn-play fa ${playStatusClass}`}
+                onClick={this.playPause}
+              ></button>
+            </p>
 
-            <p className="timestamps">
+            <p className="col-sm-4 text-center">
+              <button
+                className="btn btn-submit"
+                onClick={this.submitAnnotations}
+                type="button"
+              >Submit &amp; load next recording</button>
+            </p>
+            <p className="col-sm-4 text-right">
               {this.formatTimestamp(this.state.currentTime)}
-              /
+              &nbsp;/&nbsp;
               {this.formatTimestamp(this.state.duration)}
             </p>
           </div>
 
-          <div className="data">
-            {this.renderActiveAnnotation()}
-            <div className="data-all">
-              <div>
-                <button
-                  className="btn btn-submit"
-                  onClick={this.submitAnnotations}
-                  type="button"
-                >Submit &amp; load next recording</button>
-              </div>
-              <table className="annotations table table-hover">
+          <div className="row">
+            <div className="col-sm-6">
+              {this.renderActiveAnnotation()}
+            </div>
+            <div className="col-sm-6">
+              <table className="table table-hover">
+                <thead>
+                  <tr className="text-center table-light">
+                    <th colSpan="3">Annotations</th>
+                  </tr>
+                </thead>
                 <tbody>
                   {this.state.annotations.map(annotation => this.renderListAnnotation(annotation))}
                 </tbody>
@@ -374,29 +388,40 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
       const task: AnnotationTask = this.state.task;
 
       const tags = task.annotationTags.map((tag, idx) => (
-        <button
-          key={`tag${idx.toString()}`}
-          className={`btn ${(ann.annotation === tag) ? 'btn-outline-primary' : 'btn-primary'}`}
-          onClick={() => this.toggleTag(tag)}
-          type="button"
-        >{tag}</button>
+        <p key={`tag-${idx.toString()}`}>
+          <button
+            className={`btn ${(ann.annotation === tag) ? 'btn-tag-selected' : 'btn-tag'}`}
+            onClick={() => this.toggleTag(tag)}
+            type="button"
+          >{tag}</button>
+        </p>
       ));
 
       return (
-        <div className="data-active">
-          <p>
-            Start: {this.formatTimestamp(ann.startTime)} - 
-            End: {this.formatTimestamp(ann.endTime)}<br />
-            Min: {ann.startFrequency.toFixed(2)} - 
-            Max: {ann.endFrequency.toFixed(2)}
-          </p>
-          <p>{tags}</p>
+        <div className="card">
+          <h6 className="card-header text-center">Selected annotation</h6>
+          <div className="card-body d-flex justify-content-between">
+            <p className="card-text">
+              <i className="fa fa-clock-o"></i>&nbsp;
+              {this.formatTimestamp(ann.startTime)}&nbsp;&gt;&nbsp;
+              {this.formatTimestamp(ann.endTime)}<br />
+              <i className="fa fa-arrow-up"></i>&nbsp;
+              {ann.startFrequency.toFixed(2)}&nbsp;&gt;&nbsp;
+              {ann.endFrequency.toFixed(2)} Hz
+            </p>
+            <div className="card-text flex-fill d-flex justify-content-around">
+              {tags}
+            </div>
+          </div>
         </div>
       );
     } else {
       return (
-        <div className="data-active">
-          <p>No selected annotation</p>
+        <div className="card">
+          <h6 className="card-header text-center">Selected annotation</h6>
+          <div className="card-body">
+            <p className="card-text text-center">-</p>
+          </div>
         </div>
       );
     }
@@ -405,16 +430,23 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
   renderListAnnotation = (annotation: Annotation) => {
     return (
       <tr
-        key={`listann${annotation.id}`}
+        key={`listann-${annotation.id}`}
         onClick={() => this.activateAnnotation(annotation)}
       >
         <td>
-          {this.formatTimestamp(annotation.startTime)} &gt; {this.formatTimestamp(annotation.endTime)}
+          <i className="fa fa-clock-o"></i>&nbsp;
+          {this.formatTimestamp(annotation.startTime)}&nbsp;&gt;&nbsp;
+          {this.formatTimestamp(annotation.endTime)}
         </td>
         <td>
-          {annotation.startFrequency.toFixed(2)} &gt; {annotation.endFrequency.toFixed(2)} Hz
+          <i className="fa fa-arrow-up"></i>&nbsp;
+          {annotation.startFrequency.toFixed(2)}&nbsp;&gt;&nbsp;
+          {annotation.endFrequency.toFixed(2)} Hz
         </td>
-        <td>{annotation.annotation}</td>
+        <td>
+          <i className="fa fa-tag"></i>&nbsp;
+          {(annotation.annotation !== '') ? annotation.annotation : '-'}
+        </td>
       </tr>
     );
   }

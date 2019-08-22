@@ -8,7 +8,7 @@ import Region from './Region';
 const CANVAS_HEIGHT: number = 500;
 const CANVAS_WIDTH: number = 950;
 const LABELS_AREA_SIZE: number = 50;
-const X_AXIS_SIZE: number = 30;
+const X_AXIS_SIZE: number = 45;
 const Y_AXIS_SIZE: number = 30;
 
 
@@ -224,12 +224,11 @@ class Workbench extends Component<WorkbenchProps, WorkbenchState> {
   render() {
     const style = {
       top: LABELS_AREA_SIZE,
-      left: Y_AXIS_SIZE,
     };
 
     return (
       <div
-        className="workbench"
+        className="workbench rounded col-sm-12"
         ref={this.initSizes}
       >
         <canvas

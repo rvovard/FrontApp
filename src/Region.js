@@ -81,7 +81,7 @@ class Region extends Component<RegionProps, RegionState> {
         style={styles.wrapper}
       >
         <p
-          className={`region-header region-header--${activeClass}`}
+          className={`d-flex region-header region-header--${activeClass}`}
           style={styles.header}
         >
           <button
@@ -89,6 +89,7 @@ class Region extends Component<RegionProps, RegionState> {
             onClick={this.playAnnotation}
           ></button>
           <span
+            className="flex-fill text-center"
             onClick={this.selectAnnotation}
           >{this.props.annotation.annotation}</span>
           <button

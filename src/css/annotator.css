@@ -1,27 +1,35 @@
+/* Annotator */
+
 .annotator {
-  margin: 0 auto;
-  height: 100%;
-  width: 95%;
+  width: 97% !important;
 }
+
+/* Generic elements */
+
+.row {
+  margin-bottom: 10px;
+}
+
+.btn-simple, .btn-simple:enabled {
+  background-color: transparent;
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+
+/* Workbench */
 
 .workbench {
   position: relative;
   height: 600px;
-  width: 100%;
   background-color: #eeeeee;
 }
 
 .canvas {
   display: block;
-  position: relative;
+  position: absolute;
+  right: 0;
   cursor: crosshair;
-}
-
-.btn-simple {
-  background-color: transparent;
-  border: 0;
-  margin: 0;
-  padding: 0;
 }
 
 .region {
@@ -29,8 +37,6 @@
 }
 
 .region-header {
-  display: flex;
-  flex-direction: row;
   width: 100%;
   padding: 0 4px;
   color: #ffffff;
@@ -46,10 +52,6 @@
   background-color: #ff7600;
 }
 
-.region-header span {
-  flex: auto;
-}
-
 .region-body {
   width: 100%;
 }
@@ -61,33 +63,30 @@
   border: 2px solid #ff7600;
 }
 
-.controls {
-  clear: both;
-}
-.controls .btn-play {
-  float: left;
-}
-.controls .timestamps {
-  float: right;
+/* Controls */
+
+.controls > p {
+  margin-bottom: 0;
 }
 
-.btn-play, .btn-play:enabled {
-  color: #000080;
+.btn-play {
+  color: #00b1b9;
   font-size: 40px;
 }
 .btn-play:hover {
-  color: #006079;
+  color: #00b1b9;
 }
 
-.data {
-  display: flex;
-  flex-direction: row;
+/* Annotation details */
+
+.btn-tag, .btn-tag:hover, .btn-tag:focus {
+  background-color: transparent;
+  border-color: #00b1b9;
+  color: #000000;
 }
-.data-active {
-  flex: 1;
-  display: flex;
-  flex-direction: row;
-}
-.data-all {
-  flex: 1;
+
+.btn-tag-selected, .btn-tag-selected:hover, .btn-tag-selected:focus {
+  background-color: #ff7600;
+  border: none;
+  color: #000000;
 }
