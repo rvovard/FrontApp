@@ -201,8 +201,7 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
     const annotations: Array<Annotation> = this.state.annotations
       .filter(ann => ann.id !== activated.id)
       .map(ann => Object.assign({}, ann, { active: false }))
-      .concat(activated)
-      .sort((a, b) => a.startTime - b.startTime);
+      .concat(activated);
 
     this.setState({annotations});
   }
@@ -227,15 +226,17 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
   submitAnnotations = () => {
     const taskId: number = this.props.match.params.annotation_task_id;
 
-    const cleanAnnotations = this.state.annotations.map(ann => {
-      return {
-        id: ann.id,
-        start: ann.startTime,
-        end: ann.endTime,
-        startFrequency: ann.startFrequency,
-        endFrequency: ann.endFrequency,
-      };
-    });
+    const cleanAnnotations = this.state.annotations
+      .sort((a, b) => a.startTime - b.startTime)
+      .map(ann => {
+        return {
+          id: ann.id,
+          start: ann.startTime,
+          end: ann.endTime,
+          startFrequency: ann.startFrequency,
+          endFrequency: ann.endFrequency,
+        };
+      });
     const now: Date = new Date();
     const taskStartTime: number = Math.floor(this.state.taskStartTime / 1000);
     const taskEndTime: number = Math.floor(now.getTime() / 1000);
@@ -296,7 +297,10 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
     } else if (!this.state.task) {
       return <p>Unknown error while loading task.</p>
     } else {
+      const task: AnnotationTask = this.state.task;
       const playStatusClass = this.state.isPlaying ? "fa-pause-circle" : "fa-play-circle";
+      const sortedAnnotations: Array<Annotation> = this.state.annotations
+        .sort((a, b) => a.startTime - b.startTime);
 
       return (
         <div className="annotator container-fluid">
@@ -314,16 +318,16 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
             onLoadedMetadata={() => this.updateProgress(0)}
             preload="auto"
             ref={(element) => { if (element) this.audioPlayer = element; } }
-            src={this.state.task.audioUrl}
+            src={task.audioUrl}
           ></AudioPlayer>
 
           <div className="row">
             <Workbench
               currentTime={this.state.currentTime}
               duration={this.state.duration}
-              startFrequency={this.state.task.boundaries.startFrequency}
+              startFrequency={task.boundaries.startFrequency}
               frequencyRange={this.state.frequencyRange}
-              spectrogramUrl={this.state.task.spectroUrls['100%']}
+              spectrogramUrl={task.spectroUrls['100%']}
               annotations={this.state.annotations}
               onAnnotationCreated={this.saveAnnotation}
               onAnnotationUpdated={this.updateAnnotation}
@@ -369,7 +373,7 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
                   </tr>
                 </thead>
                 <tbody>
-                  {this.state.annotations.map(annotation => this.renderListAnnotation(annotation))}
+                  {sortedAnnotations.map(annotation => this.renderListAnnotation(annotation))}
                 </tbody>
               </table>
             </div>
