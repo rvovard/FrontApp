@@ -90,8 +90,8 @@ class Workbench extends Component<WorkbenchProps, WorkbenchState> {
     if (wrapper) {
       const bounds: ClientRect = wrapper.getBoundingClientRect();
       const canvas: HTMLCanvasElement = this.canvasRef.current;
-      const canvasWidth: number = bounds.width - X_AXIS_SIZE;
-      const canvasHeight: number = bounds.height - LABELS_AREA_SIZE - Y_AXIS_SIZE;
+      const canvasWidth: number = bounds.width - Y_AXIS_SIZE;
+      const canvasHeight: number = bounds.height - LABELS_AREA_SIZE - X_AXIS_SIZE;
 
       canvas.width = canvasWidth;
       canvas.height = canvasHeight;
