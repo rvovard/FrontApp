@@ -361,11 +361,13 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
             <Workbench
               tagColors={this.state.tagColors}
               currentTime={this.state.currentTime}
-              duration={this.state.duration}
+              // duration={this.state.duration}
+              duration={300}
               startFrequency={task.boundaries.startFrequency}
               frequencyRange={this.state.frequencyRange}
               spectrogramUrl={task.spectroUrls['100%']}
               annotations={this.state.annotations}
+              zoomLevels={[1, 2, 4, 8, 16,]}
               onAnnotationCreated={this.saveAnnotation}
               onAnnotationUpdated={this.updateAnnotation}
               onAnnotationDeleted={this.deleteAnnotation}
@@ -376,7 +378,7 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
             </Workbench>
           </div>
 
-          <div className="row controls">
+          <div className="row annotator-controls">
             <p className="col-sm-1">
               <button
                 className={`btn-simple btn-play fa ${playStatusClass}`}

@@ -6,12 +6,18 @@ import type { Annotation } from './AudioAnnotator';
 import Region from './Region';
 
 // Component dimensions constants
-const CANVAS_HEIGHT: number = 500;
+const CANVAS_HEIGHT: number = 512;
 const CANVAS_WIDTH: number = 950;
-const LABELS_AREA_SIZE: number = 50;
-const X_AXIS_SIZE: number = 45;
+const CONTROLS_AREA_SIZE: number = 80;
+const SCROLLBAR_RESERVED: number = 20;
+const X_AXIS_SIZE: number = 30;
 const Y_AXIS_SIZE: number = 30;
 
+type Spectrogram = {
+  start: number,
+  end: number,
+  image: Image,
+};
 
 type WorkbenchProps = {
   tagColors: Map<string, string>,
@@ -21,6 +27,7 @@ type WorkbenchProps = {
   frequencyRange: number,
   spectrogramUrl: string,
   annotations: Array<Annotation>,
+  zoomLevels: Array<number>,
   onAnnotationCreated: (Annotation) => void,
   onAnnotationUpdated: (Annotation) => void,
   onAnnotationDeleted: (Annotation) => void,
@@ -30,16 +37,28 @@ type WorkbenchProps = {
 };
 
 type WorkbenchState = {
-  canvasWidth: number,
-  canvasHeight: number,
+  wrapperWidth: number,
+  wrapperHeight: number,
+  zoomFactor: number,
   timePxRatio: number,
   freqPxRatio: number,
   spectrogram: ?Image,
+  spectrograms: Map<number, Array<Spectrogram>>,
   newAnnotation: ?Annotation,
 };
 
 class Workbench extends Component<WorkbenchProps, WorkbenchState> {
 
+  /**
+   * Ref to canvas wrapper is used to modify its scrollLeft property.
+   * @property {any} wrapperRef React reference to the wrapper
+   */
+  wrapperRef: any;
+
+  /**
+   * Ref to canvas is used to modify its width and height properties.
+   * @property {any} canvasRef React reference to the canvas
+   */
   canvasRef: any;
 
   isDrawing: boolean;
@@ -51,14 +70,17 @@ class Workbench extends Component<WorkbenchProps, WorkbenchState> {
     super(props);
 
     this.state = {
-      canvasWidth: CANVAS_WIDTH,
-      canvasHeight: CANVAS_HEIGHT,
+      wrapperWidth: CANVAS_WIDTH,
+      wrapperHeight: CANVAS_HEIGHT + SCROLLBAR_RESERVED,
+      zoomFactor: 1,
       timePxRatio: CANVAS_WIDTH / props.duration,
       freqPxRatio: CANVAS_HEIGHT / props.frequencyRange,
       spectrogram: undefined,
+      spectrograms: new Map(),
       newAnnotation: undefined,
     };
 
+    this.wrapperRef = React.createRef();
     this.canvasRef = React.createRef();
 
     this.isDrawing = false;
@@ -75,6 +97,32 @@ class Workbench extends Component<WorkbenchProps, WorkbenchState> {
 
     this.setState({spectrogram});
 
+    // Handling spectrogram images
+    /* @todo Currently we load all images at this time, not only displayed ones
+     * Implement a cache system which will load images when needed
+     */
+    const spectrograms = this.props.zoomLevels.map(zoomLvl => {
+      const step: number = 300 / zoomLvl;
+
+      const zoomSpectros = [...Array(zoomLvl)].map((_, i) => {
+        const start: number = i * step;
+        const end: number = (i + 1) * step;
+        const strStart = Number.isInteger(start) ? start.toFixed(1) : start.toString();
+        const strEnd = Number.isInteger(end) ? end.toFixed(1) : end.toString();
+
+        const image = new Image();
+        image.src = `/sounds/A32C0253_${strStart}_${strEnd}.png`;
+        image.onload = this.renderCanvas;
+        return {start, end, image};
+      });
+
+      return [zoomLvl, zoomSpectros];
+    });
+
+    this.setState({spectrograms: new Map(spectrograms)});
+
+    // Add event listeners at the document level
+    // (the user is able to release the click on any zone)
     document.addEventListener('pointermove', this.onUpdateNewAnnotation);
     document.addEventListener('pointerup', this.onEndNewAnnotation);
   }
@@ -88,21 +136,20 @@ class Workbench extends Component<WorkbenchProps, WorkbenchState> {
     document.removeEventListener('pointerup', this.onEndNewAnnotation);
   }
 
-  initSizes = (wrapper: ?HTMLElement) => {
-    if (wrapper) {
-      const bounds: ClientRect = wrapper.getBoundingClientRect();
+  initSizes = (workbench: ?HTMLElement) => {
+    if (workbench) {
+      const bounds: ClientRect = workbench.getBoundingClientRect();
       const canvas: HTMLCanvasElement = this.canvasRef.current;
-      const canvasWidth: number = bounds.width - Y_AXIS_SIZE;
-      const canvasHeight: number = bounds.height - LABELS_AREA_SIZE - X_AXIS_SIZE;
+      const wrapperWidth: number = Math.floor(bounds.width - Y_AXIS_SIZE);
 
-      canvas.width = canvasWidth;
-      canvas.height = canvasHeight;
+      canvas.width = wrapperWidth; // Adapt width to available space
+      canvas.height = CANVAS_HEIGHT; // Force height
 
       this.setState({
-        canvasWidth,
-        canvasHeight,
-        timePxRatio: canvasWidth / this.props.duration,
-        freqPxRatio: canvasHeight / this.props.frequencyRange,
+        wrapperWidth: wrapperWidth,
+        wrapperHeight: CANVAS_HEIGHT + SCROLLBAR_RESERVED,
+        timePxRatio: wrapperWidth / this.props.duration,
+        freqPxRatio: CANVAS_HEIGHT / this.props.frequencyRange,
       });
     }
   }
@@ -139,6 +186,41 @@ class Workbench extends Component<WorkbenchProps, WorkbenchState> {
 
   seekTo = (event: SyntheticPointerEvent<HTMLCanvasElement>) => {
     this.props.onSeek(this.getTimeFromClientX(event.clientX));
+  }
+
+  onWheelZoom = (event: SyntheticWheelEvent<HTMLCanvasElement>) => {
+    if (event.deltaY < 0) {
+      // Zoom in
+      this.zoom(1);
+    } else if (event.deltaY > 0) {
+      // Zoom out
+      this.zoom(-1);
+    }
+  }
+
+  zoom = (direction: number) => {
+    const canvas: HTMLCanvasElement = this.canvasRef.current;
+    const oldZoomIdx: number = this.props.zoomLevels.findIndex(factor => factor === this.state.zoomFactor);
+
+    let newZoom: number = this.state.zoomFactor;
+
+    if (direction > 0 && oldZoomIdx < this.props.zoomLevels.length - 1) {
+      // Zoom in
+      newZoom = this.props.zoomLevels[oldZoomIdx+1];
+    } else if (direction < 0 && oldZoomIdx > 0) {
+      // Zoom out
+      newZoom = this.props.zoomLevels[oldZoomIdx-1];
+    }
+
+    canvas.width = this.state.wrapperWidth * newZoom;
+
+    // const wrapper: HTMLElement = this.wrapperRef.current;
+    // wrapper.scrollLeft = event.clientX * newZoom / 2;
+
+    this.setState({
+      zoomFactor: newZoom,
+      timePxRatio: this.state.wrapperWidth * newZoom / this.props.duration,
+    });
   }
 
   onStartNewAnnotation = (event: SyntheticPointerEvent<HTMLCanvasElement>) => {
@@ -206,6 +288,18 @@ class Workbench extends Component<WorkbenchProps, WorkbenchState> {
       context.drawImage(this.state.spectrogram, 0, 0, canvas.width, canvas.height);
     }
 
+    // Draw spectro images
+    const spectrograms = this.state.spectrograms.get(this.state.zoomFactor);
+    if (spectrograms) {
+      spectrograms.forEach(spectro => {
+        if (spectro.image) {
+          const x = spectro.start * this.state.timePxRatio;
+          const width = (spectro.end - spectro.start) * this.state.timePxRatio;
+          context.drawImage(spectro.image, x, 0, width, canvas.height);
+        }
+      });
+    }
+
     // Progress bar
     const newX: number = Math.floor(canvas.width * this.props.currentTime / this.props.duration);
     context.fillStyle = 'rgba(0, 0, 0)';
@@ -225,32 +319,60 @@ class Workbench extends Component<WorkbenchProps, WorkbenchState> {
 
   render() {
     const style = {
-      top: LABELS_AREA_SIZE,
+      workbench: {
+        height: `${CONTROLS_AREA_SIZE + CANVAS_HEIGHT + SCROLLBAR_RESERVED + X_AXIS_SIZE}px`
+      },
+      wrapper: {
+        top: `${CONTROLS_AREA_SIZE}px`,
+        height: `${this.state.wrapperHeight}px`,
+        width: `${this.state.wrapperWidth}px`,
+      },
+      canvas: {
+        top: 0,
+        left: 0,
+      }
     };
 
     return (
       <div
         className="workbench rounded col-sm-12"
         ref={this.initSizes}
+        style={style.workbench}
       >
-        <canvas
-          className="canvas"
-          ref={this.canvasRef}
-          height={CANVAS_HEIGHT}
-          width={CANVAS_WIDTH}
-          style={style}
-          onClick={this.seekTo}
-          onPointerDown={this.onStartNewAnnotation}
-        ></canvas>
+        <p className="workbench-controls">
+          <button className="btn-simple fa fa-search-plus" onClick={() => this.zoom(1)}></button>
+          <button className="btn-simple fa fa-search-minus" onClick={() => this.zoom(-1)}></button>
+          <span>{this.state.zoomFactor}x</span>
+        </p>
 
-        {this.props.annotations.map(annotation => this.renderRegion(annotation))}
+        <div
+          className="canvas-wrapper"
+          ref={this.wrapperRef}
+          style={style.wrapper}
+        >
+          <canvas
+            className="canvas"
+            ref={this.canvasRef}
+            height={CANVAS_HEIGHT}
+            width={CANVAS_WIDTH}
+            style={style.canvas}
+            onClick={this.seekTo}
+            onPointerDown={this.onStartNewAnnotation}
+            onWheel={this.onWheelZoom}
+          ></canvas>
+
+          {this.props.annotations.map(annotation => this.renderRegion(annotation))}
+        </div>
       </div>
     );
   }
 
   renderRegion = (ann: Annotation) => {
-    const offsetTop: number = LABELS_AREA_SIZE + this.state.canvasHeight - ann.endFrequency * this.state.freqPxRatio;
-    const offsetLeft: number = Y_AXIS_SIZE + ann.startTime * this.state.timePxRatio;
+    // Top offset
+    const offsetTop: number = CANVAS_HEIGHT - ann.endFrequency * this.state.freqPxRatio;
+
+    // Left offset
+    const offsetLeft: number = ann.startTime * this.state.timePxRatio;
 
     return (
       <Region

@@ -175,7 +175,8 @@ class AudioPlayer extends React.Component<AudioPlayerProps> {
         onVolumeChange={this.props.onVolumeChanged}
         preload={this.props.preload}
         ref={(ref) => { if (ref) this.audioElement = ref; }}
-        src={this.props.src}
+        // src={this.props.src}
+        src="/sounds/A32C0253_0mn-5mn.WAV"
         style={this.props.style}
         title={title}
         {...conditionalProps}
