@@ -8,6 +8,15 @@ html {
   width: 97% !important;
 }
 
+.annotator-nav {
+  display: flex;
+  flex-direction: row;
+  justify-content: end;
+}
+.annotator-nav > li {
+  padding: 10px 10px 0 10px;
+}
+
 /* Generic elements */
 
 .row {

@@ -233,6 +233,7 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
           id: ann.id,
           start: ann.startTime,
           end: ann.endTime,
+          annotation: ann.annotation,
           startFrequency: ann.startFrequency,
           endFrequency: ann.endFrequency,
         };
@@ -269,23 +270,15 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
       });
   }
 
-  strPad = (nb: number) => {
-    if (nb < 10) {
-      return '0' + nb.toFixed(0);
-    } else {
-      return nb.toFixed(0);
-    }
-  }
-
   formatTimestamp = (rawSeconds: number) => {
     const hours: number = Math.floor(rawSeconds / 3600);
     const minutes: number = Math.floor(rawSeconds / 60) % 60;
     const seconds: number = Math.floor(rawSeconds) % 60;
     const ms: number = rawSeconds - seconds;
 
-    return this.strPad(hours) + ':'
-      + this.strPad(minutes) + ':'
-      + this.strPad(seconds) + '.'
+    return String(hours).padStart(2, '0') + ':'
+      + String(minutes).padStart(2, '0') + ':'
+      + String(seconds).padStart(2, '0') + '.'
       + ms.toFixed(3).slice(-3);
   }
 
@@ -305,10 +298,15 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
       return (
         <div className="annotator container-fluid">
           <div className="row">
-            <h1 className="col-sm-9">Ocean Data Explorer</h1>
-            <p className="col-sm-3 text-right"><Link to={'/audio-annotator/legacy/' + this.props.match.params.annotation_task_id}>
-              Switch to old annotator
-            </Link></p>
+            <h1 className="col-sm-6">Ocean Data Explorer</h1>
+            <ul className="col-sm-6 annotator-nav">
+              <li><Link to={'/annotation-campaigns'} title="Annotation campaign list">
+                Campaigns
+              </Link></li>
+              <li><Link to={'/audio-annotator/legacy/' + this.props.match.params.annotation_task_id}>
+                Switch to old annotator
+              </Link></li>
+            </ul>
           </div>
 
           <AudioPlayer
