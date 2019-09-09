@@ -6,8 +6,8 @@ import request from 'superagent';
 import AudioPlayer from './AudioPlayer';
 import Workbench from './Workbench';
 
-import './css/font-awesome-4.7.0.min.css';
-import './css/annotator.css';
+import '../css/font-awesome-4.7.0.min.css';
+import '../css/annotator.css';
 
 // API constants
 if (!process.env.REACT_APP_API_URL) throw new Error('REACT_APP_API_URL missing in env');
