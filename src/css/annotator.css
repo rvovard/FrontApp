@@ -117,6 +117,16 @@ html {
   cursor: crosshair;
 }
 
+.time-axis {
+  display: block;
+  position: absolute;
+}
+
+.freq-axis {
+  display: block;
+  position: absolute;
+}
+
 .region {
   position: absolute;
 }

@@ -361,10 +361,12 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
             <Workbench
               tagColors={this.state.tagColors}
               currentTime={this.state.currentTime}
-              // duration={this.state.duration}
+              // duration={this.state.duration} @TODO TEMP
               duration={300}
-              startFrequency={task.boundaries.startFrequency}
-              frequencyRange={this.state.frequencyRange}
+              // startFrequency={task.boundaries.startFrequency} @TODO TEMP
+              startFrequency={0}
+              // frequencyRange={this.state.frequencyRange} @TODO TEMP
+              frequencyRange={12000}
               spectrogramUrl={task.spectroUrls['100%']}
               annotations={this.state.annotations}
               zoomLevels={[1, 2, 4, 8, 16,]}

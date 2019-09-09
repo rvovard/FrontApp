@@ -9,9 +9,9 @@ import Region from './Region';
 const CANVAS_HEIGHT: number = 512;
 const CANVAS_WIDTH: number = 950;
 const CONTROLS_AREA_SIZE: number = 80;
+const TIME_AXIS_SIZE: number = 30;
+const FREQ_AXIS_SIZE: number = 35;
 const SCROLLBAR_RESERVED: number = 20;
-const X_AXIS_SIZE: number = 30;
-const Y_AXIS_SIZE: number = 30;
 
 type Spectrogram = {
   start: number,
@@ -56,10 +56,13 @@ class Workbench extends Component<WorkbenchProps, WorkbenchState> {
   wrapperRef: any;
 
   /**
-   * Ref to canvas is used to modify its width and height properties.
+   * Ref to canvas is used to modify its width and height properties, and to get its context.
    * @property {any} canvasRef React reference to the canvas
    */
   canvasRef: any;
+
+  timeAxisRef: any;
+  freqAxisRef: any;
 
   isDrawing: boolean;
   drawPxMove: number;
@@ -71,7 +74,7 @@ class Workbench extends Component<WorkbenchProps, WorkbenchState> {
 
     this.state = {
       wrapperWidth: CANVAS_WIDTH,
-      wrapperHeight: CANVAS_HEIGHT + SCROLLBAR_RESERVED,
+      wrapperHeight: CANVAS_HEIGHT + TIME_AXIS_SIZE + SCROLLBAR_RESERVED,
       zoomFactor: 1,
       timePxRatio: CANVAS_WIDTH / props.duration,
       freqPxRatio: CANVAS_HEIGHT / props.frequencyRange,
@@ -82,6 +85,8 @@ class Workbench extends Component<WorkbenchProps, WorkbenchState> {
 
     this.wrapperRef = React.createRef();
     this.canvasRef = React.createRef();
+    this.timeAxisRef = React.createRef();
+    this.freqAxisRef = React.createRef();
 
     this.isDrawing = false;
     this.drawPxMove = 0;
@@ -129,6 +134,8 @@ class Workbench extends Component<WorkbenchProps, WorkbenchState> {
 
   componentDidUpdate() {
     this.renderCanvas();
+    this.renderTimeAxis();
+    this.renderFreqAxis();
   }
 
   componentWillUnmount() {
@@ -139,15 +146,22 @@ class Workbench extends Component<WorkbenchProps, WorkbenchState> {
   initSizes = (workbench: ?HTMLElement) => {
     if (workbench) {
       const bounds: ClientRect = workbench.getBoundingClientRect();
-      const canvas: HTMLCanvasElement = this.canvasRef.current;
-      const wrapperWidth: number = Math.floor(bounds.width - Y_AXIS_SIZE);
+      const wrapperWidth: number = Math.floor(bounds.width - FREQ_AXIS_SIZE);
 
-      canvas.width = wrapperWidth; // Adapt width to available space
-      canvas.height = CANVAS_HEIGHT; // Force height
+      const canvas: HTMLCanvasElement = this.canvasRef.current;
+      const timeAxis: HTMLCanvasElement = this.timeAxisRef.current;
+
+      // Adapt width to available space
+      canvas.width = wrapperWidth;
+      timeAxis.width = wrapperWidth;
+
+      // Force height
+      canvas.height = CANVAS_HEIGHT;
+      timeAxis.height = TIME_AXIS_SIZE;
 
       this.setState({
         wrapperWidth: wrapperWidth,
-        wrapperHeight: CANVAS_HEIGHT + SCROLLBAR_RESERVED,
+        wrapperHeight: CANVAS_HEIGHT + TIME_AXIS_SIZE + SCROLLBAR_RESERVED,
         timePxRatio: wrapperWidth / this.props.duration,
         freqPxRatio: CANVAS_HEIGHT / this.props.frequencyRange,
       });
@@ -200,8 +214,9 @@ class Workbench extends Component<WorkbenchProps, WorkbenchState> {
 
   zoom = (direction: number) => {
     const canvas: HTMLCanvasElement = this.canvasRef.current;
-    const oldZoomIdx: number = this.props.zoomLevels.findIndex(factor => factor === this.state.zoomFactor);
+    const timeAxis: HTMLCanvasElement = this.timeAxisRef.current;
 
+    const oldZoomIdx: number = this.props.zoomLevels.findIndex(factor => factor === this.state.zoomFactor);
     let newZoom: number = this.state.zoomFactor;
 
     if (direction > 0 && oldZoomIdx < this.props.zoomLevels.length - 1) {
@@ -213,6 +228,7 @@ class Workbench extends Component<WorkbenchProps, WorkbenchState> {
     }
 
     canvas.width = this.state.wrapperWidth * newZoom;
+    timeAxis.width = this.state.wrapperWidth * newZoom;
 
     // const wrapper: HTMLElement = this.wrapperRef.current;
     // wrapper.scrollLeft = event.clientX * newZoom / 2;
@@ -279,6 +295,97 @@ class Workbench extends Component<WorkbenchProps, WorkbenchState> {
     this.drawPxMove = 0;
   }
 
+  renderTimeAxis = () => {
+    const timeAxis: HTMLCanvasElement = this.timeAxisRef.current;
+    const context: CanvasRenderingContext2D = timeAxis.getContext('2d');
+    const bounds: ClientRect = timeAxis.getBoundingClientRect();
+
+    let step: number = 1; // step of scale (in seconds)
+    let bigStep: number = 5;
+
+    const durationOnScreen: number = this.state.wrapperWidth / this.state.timePxRatio;
+    if (durationOnScreen <= 60) {
+      step = 1;
+      bigStep = 5;
+    } else if (durationOnScreen > 60 && durationOnScreen <= 120) {
+      step = 2;
+      bigStep = 5;
+    } else if (durationOnScreen > 120 && durationOnScreen <= 240) {
+      step = 4;
+      bigStep = 5;
+    } else {
+      step = 10;
+      bigStep = 6;
+    }
+
+    const startTime: number = Math.ceil(this.getTimeFromClientX(bounds.left));
+    const endTime: number = Math.floor(this.getTimeFromClientX(bounds.right));
+
+    context.fillStyle = 'rgba(0, 0, 0)';
+
+    let i: number = 0;
+    for (i = startTime ; i <= endTime; i++) {
+      if (i % step === 0) {
+        const x: number = (i - startTime) * this.state.timePxRatio;
+        let xTxt: number = x - 25;
+        if (xTxt < 0) {
+          xTxt += 25;
+        } else if (xTxt >= (bounds.width - 30)) {
+          xTxt -= 25;
+        }
+
+        if (i % bigStep === 0) {
+          context.fillRect(x, 0, 2, 15);
+          context.fillText(this.formatTimestamp(i), xTxt, 25);
+        } else {
+          context.fillRect(x, 0, 1, 10);
+        }
+      }
+    }
+  }
+
+  renderFreqAxis = () => {
+    const freqAxis: HTMLCanvasElement = this.freqAxisRef.current;
+    const context: CanvasRenderingContext2D = freqAxis.getContext('2d');
+
+    const step: number = 500; // step of scale (in hz)
+    const bigStep: number = 2000;
+
+    const startFreq: number = Math.ceil(this.props.startFrequency);
+    const endFreq: number = Math.floor(this.props.startFrequency + this.props.frequencyRange);
+    context.fillStyle = 'rgba(0, 0, 0)';
+
+    let i: number = 0;
+    for (i = startFreq ; i <= endFreq ; i += 100) {
+      if (i % step === 0) {
+        const y: number = CANVAS_HEIGHT - (i - startFreq) * this.state.freqPxRatio - 2;
+        let yTxt: number = y - 3;
+
+        if (i % bigStep === 0) {
+          context.fillRect(FREQ_AXIS_SIZE - 15, y, 15, 2);
+          context.fillText(i.toString(), 0, yTxt);
+        } else {
+          context.fillRect(FREQ_AXIS_SIZE - 10, y, 10, 1);
+        }
+      }
+    }
+  }
+
+  strPad = (nb: number) => {
+    if (nb < 10) {
+      return '0' + nb.toFixed(0);
+    } else {
+      return nb.toFixed(0);
+    }
+  }
+
+  formatTimestamp = (rawSeconds: number) => {
+    const minutes: number = Math.floor(rawSeconds / 60) % 60;
+    const seconds: number = Math.floor(rawSeconds) % 60;
+
+    return this.strPad(minutes) + 'min' + this.strPad(seconds) + 's';
+  }
+
   renderCanvas = () => {
     const canvas: HTMLCanvasElement = this.canvasRef.current;
     const context: CanvasRenderingContext2D = canvas.getContext('2d');
@@ -320,7 +427,7 @@ class Workbench extends Component<WorkbenchProps, WorkbenchState> {
   render() {
     const style = {
       workbench: {
-        height: `${CONTROLS_AREA_SIZE + CANVAS_HEIGHT + SCROLLBAR_RESERVED + X_AXIS_SIZE}px`
+        height: `${CONTROLS_AREA_SIZE + CANVAS_HEIGHT + TIME_AXIS_SIZE + SCROLLBAR_RESERVED}px`
       },
       wrapper: {
         top: `${CONTROLS_AREA_SIZE}px`,
@@ -330,7 +437,15 @@ class Workbench extends Component<WorkbenchProps, WorkbenchState> {
       canvas: {
         top: 0,
         left: 0,
-      }
+      },
+      timeAxis: {
+        top: `${CANVAS_HEIGHT}px`,
+        left: 0,
+      },
+      freqAxis: {
+        top: `${CONTROLS_AREA_SIZE}px`,
+        left: 0,
+      },
     };
 
     return (
@@ -345,6 +460,13 @@ class Workbench extends Component<WorkbenchProps, WorkbenchState> {
           <span>{this.state.zoomFactor}x</span>
         </p>
 
+        <canvas
+          className="freq-axis"
+          ref={this.freqAxisRef}
+          height={CANVAS_HEIGHT}
+          width={FREQ_AXIS_SIZE}
+          style={style.freqAxis}
+        ></canvas>
         <div
           className="canvas-wrapper"
           ref={this.wrapperRef}
@@ -359,6 +481,14 @@ class Workbench extends Component<WorkbenchProps, WorkbenchState> {
             onClick={this.seekTo}
             onPointerDown={this.onStartNewAnnotation}
             onWheel={this.onWheelZoom}
+          ></canvas>
+
+          <canvas
+            className="time-axis"
+            ref={this.timeAxisRef}
+            height={TIME_AXIS_SIZE}
+            width={CANVAS_WIDTH}
+            style={style.timeAxis}
           ></canvas>
 
           {this.props.annotations.map(annotation => this.renderRegion(annotation))}
