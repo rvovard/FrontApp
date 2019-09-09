@@ -103,3 +103,9 @@ html {
   border: none;
   color: #000000;
 }
+
+.annotation-tags {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-around;
+}

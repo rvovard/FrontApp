@@ -390,13 +390,13 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
       const task: AnnotationTask = this.state.task;
 
       const tags = task.annotationTags.map((tag, idx) => (
-        <p key={`tag-${idx.toString()}`}>
+        <li key={`tag-${idx.toString()}`}>
           <button
             className={`btn ${(ann.annotation === tag) ? 'btn-tag-selected' : 'btn-tag'}`}
             onClick={() => this.toggleTag(tag)}
             type="button"
           >{tag}</button>
-        </p>
+        </li>
       ));
 
       return (
@@ -411,9 +411,9 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
               {ann.startFrequency.toFixed(2)}&nbsp;&gt;&nbsp;
               {ann.endFrequency.toFixed(2)} Hz
             </p>
-            <div className="card-text flex-fill d-flex justify-content-around">
+            <ul className="card-text annotation-tags">
               {tags}
-            </div>
+            </ul>
           </div>
         </div>
       );
