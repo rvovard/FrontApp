@@ -7,7 +7,7 @@ import Region from './Region';
 
 // Component dimensions constants
 const CANVAS_HEIGHT: number = 512;
-const CANVAS_WIDTH: number = 950;
+const CANVAS_WIDTH: number = 1813;
 const CONTROLS_AREA_SIZE: number = 80;
 const TIME_AXIS_SIZE: number = 30;
 const FREQ_AXIS_SIZE: number = 35;
@@ -56,7 +56,7 @@ class Workbench extends Component<WorkbenchProps, WorkbenchState> {
   wrapperRef: any;
 
   /**
-   * Ref to canvas is used to modify its width and height properties, and to get its context.
+   * Ref to canvases are used to get their context.
    * @property {any} canvasRef React reference to the canvas
    */
   canvasRef: any;
@@ -143,31 +143,6 @@ class Workbench extends Component<WorkbenchProps, WorkbenchState> {
     document.removeEventListener('pointerup', this.onEndNewAnnotation);
   }
 
-  initSizes = (workbench: ?HTMLElement) => {
-    if (workbench) {
-      const bounds: ClientRect = workbench.getBoundingClientRect();
-      const wrapperWidth: number = Math.floor(bounds.width - FREQ_AXIS_SIZE);
-
-      const canvas: HTMLCanvasElement = this.canvasRef.current;
-      const timeAxis: HTMLCanvasElement = this.timeAxisRef.current;
-
-      // Adapt width to available space
-      canvas.width = wrapperWidth;
-      timeAxis.width = wrapperWidth;
-
-      // Force height
-      canvas.height = CANVAS_HEIGHT;
-      timeAxis.height = TIME_AXIS_SIZE;
-
-      this.setState({
-        wrapperWidth: wrapperWidth,
-        wrapperHeight: CANVAS_HEIGHT + TIME_AXIS_SIZE + SCROLLBAR_RESERVED,
-        timePxRatio: wrapperWidth / this.props.duration,
-        freqPxRatio: CANVAS_HEIGHT / this.props.frequencyRange,
-      });
-    }
-  }
-
   getTimeFromClientX = (clientX: number) => {
     const canvas: HTMLCanvasElement = this.canvasRef.current;
     const bounds: ClientRect = canvas.getBoundingClientRect();
@@ -203,6 +178,9 @@ class Workbench extends Component<WorkbenchProps, WorkbenchState> {
   }
 
   onWheelZoom = (event: SyntheticWheelEvent<HTMLCanvasElement>) => {
+    // Prevent page scrolling
+    event.preventDefault();
+
     if (event.deltaY < 0) {
       // Zoom in
       this.zoom(1);
@@ -298,7 +276,7 @@ class Workbench extends Component<WorkbenchProps, WorkbenchState> {
   renderTimeAxis = () => {
     const timeAxis: HTMLCanvasElement = this.timeAxisRef.current;
     const context: CanvasRenderingContext2D = timeAxis.getContext('2d');
-    const bounds: ClientRect = timeAxis.getBoundingClientRect();
+    context.clearRect(0, 0, timeAxis.width, timeAxis.height);
 
     let step: number = 1; // step of scale (in seconds)
     let bigStep: number = 5;
@@ -318,6 +296,7 @@ class Workbench extends Component<WorkbenchProps, WorkbenchState> {
       bigStep = 6;
     }
 
+    const bounds: ClientRect = timeAxis.getBoundingClientRect();
     const startTime: number = Math.ceil(this.getTimeFromClientX(bounds.left));
     const endTime: number = Math.floor(this.getTimeFromClientX(bounds.right));
 
@@ -334,9 +313,10 @@ class Workbench extends Component<WorkbenchProps, WorkbenchState> {
           xTxt -= 25;
         }
 
+        context.font = '10px Arial';
         if (i % bigStep === 0) {
           context.fillRect(x, 0, 2, 15);
-          context.fillText(this.formatTimestamp(i), xTxt, 25);
+          context.fillText(utils.formatTimestamp(i, false), xTxt, 25);
         } else {
           context.fillRect(x, 0, 1, 10);
         }
@@ -347,6 +327,7 @@ class Workbench extends Component<WorkbenchProps, WorkbenchState> {
   renderFreqAxis = () => {
     const freqAxis: HTMLCanvasElement = this.freqAxisRef.current;
     const context: CanvasRenderingContext2D = freqAxis.getContext('2d');
+    context.clearRect(0, 0, freqAxis.width, freqAxis.height);
 
     const step: number = 500; // step of scale (in hz)
     const bigStep: number = 2000;
@@ -361,6 +342,7 @@ class Workbench extends Component<WorkbenchProps, WorkbenchState> {
         const y: number = CANVAS_HEIGHT - (i - startFreq) * this.state.freqPxRatio - 2;
         let yTxt: number = y - 3;
 
+        context.font = '10px Arial';
         if (i % bigStep === 0) {
           context.fillRect(FREQ_AXIS_SIZE - 15, y, 15, 2);
           context.fillText(i.toString(), 0, yTxt);
@@ -371,24 +353,10 @@ class Workbench extends Component<WorkbenchProps, WorkbenchState> {
     }
   }
 
-  strPad = (nb: number) => {
-    if (nb < 10) {
-      return '0' + nb.toFixed(0);
-    } else {
-      return nb.toFixed(0);
-    }
-  }
-
-  formatTimestamp = (rawSeconds: number) => {
-    const minutes: number = Math.floor(rawSeconds / 60) % 60;
-    const seconds: number = Math.floor(rawSeconds) % 60;
-
-    return this.strPad(minutes) + 'min' + this.strPad(seconds) + 's';
-  }
-
   renderCanvas = () => {
     const canvas: HTMLCanvasElement = this.canvasRef.current;
     const context: CanvasRenderingContext2D = canvas.getContext('2d');
+    context.clearRect(0, 0, canvas.width, canvas.height);
 
     // Draw spectro image
     if (this.state.spectrogram) {
@@ -401,7 +369,7 @@ class Workbench extends Component<WorkbenchProps, WorkbenchState> {
       spectrograms.forEach(spectro => {
         if (spectro.image) {
           const x = spectro.start * this.state.timePxRatio;
-          const width = (spectro.end - spectro.start) * this.state.timePxRatio;
+          const width = Math.floor((spectro.end - spectro.start) * this.state.timePxRatio);
           context.drawImage(spectro.image, x, 0, width, canvas.height);
         }
       });
@@ -427,7 +395,8 @@ class Workbench extends Component<WorkbenchProps, WorkbenchState> {
   render() {
     const style = {
       workbench: {
-        height: `${CONTROLS_AREA_SIZE + CANVAS_HEIGHT + TIME_AXIS_SIZE + SCROLLBAR_RESERVED}px`
+        height: `${CONTROLS_AREA_SIZE + CANVAS_HEIGHT + TIME_AXIS_SIZE + SCROLLBAR_RESERVED}px`,
+        width: `${FREQ_AXIS_SIZE + CANVAS_WIDTH}px`,
       },
       wrapper: {
         top: `${CONTROLS_AREA_SIZE}px`,
@@ -450,8 +419,7 @@ class Workbench extends Component<WorkbenchProps, WorkbenchState> {
 
     return (
       <div
-        className="workbench rounded col-sm-12"
-        ref={this.initSizes}
+        className="workbench rounded"
         style={style.workbench}
       >
         <p className="workbench-controls">
