@@ -95,17 +95,21 @@ html {
 .btn-tag, .btn-tag:hover, .btn-tag:focus {
   background-color: transparent;
   border-color: #00b1b9;
-  color: #000000;
+  color: #00b1b9;
 }
 
 .btn-tag-selected, .btn-tag-selected:hover, .btn-tag-selected:focus {
-  background-color: #ff7600;
+  background-color: #00b1b9;
   border: none;
-  color: #000000;
+  color: #ffffff;
 }
 
 .annotation-tags {
   display: flex;
   flex-wrap: wrap;
-  justify-content: space-around;
+  justify-content: right;
+}
+
+.annotation-tags li {
+  margin: 5px;
 }
