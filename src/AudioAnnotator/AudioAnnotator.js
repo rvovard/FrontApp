@@ -6,6 +6,9 @@ import request from 'superagent';
 import AudioPlayer from './AudioPlayer';
 import Workbench from './Workbench';
 
+import type { ToastMsg } from '../Toast';
+import Toast from '../Toast';
+
 import '../css/font-awesome-4.7.0.min.css';
 import '../css/annotator.css';
 
@@ -47,6 +50,7 @@ type AudioAnnotatorProps = {
 
 type AudioAnnotatorState = {
   error: ?string,
+  toastMsg: ?ToastMsg,
   isLoading: boolean,
   isPlaying: boolean,
   stopTime: ?number,
@@ -69,6 +73,7 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
 
     this.state = {
       error: undefined,
+      toastMsg: undefined,
       isLoading: true,
       isPlaying: false,
       stopTime: undefined,
@@ -176,6 +181,12 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
       {}, annotation, { id: maxId ? (maxId + 1).toString() : '1' }
     );
 
+    if (this.state.annotations.length === 0) {
+      this.setState({
+        toastMsg: {msg: 'Select a tag to annotate the box.', lvl: 'primary'},
+      });
+    }
+
     this.activateAnnotation(newAnnotation);
   }
 
@@ -219,7 +230,24 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
         .filter(ann => !ann.active)
         .concat(newAnnotation);
 
-      this.setState({annotations});
+      this.setState({
+        annotations,
+        toastMsg: undefined,
+      });
+    }
+  }
+
+  checkAnnotations = () => {
+    const emptyAnnotations = this.state.annotations
+      .filter((ann: Annotation) => ann.annotation.length === 0);
+
+    if (emptyAnnotations.length > 0) {
+      this.activateAnnotation(emptyAnnotations.shift());
+      this.setState({
+        toastMsg: {msg: 'Make sure all your annotations are tagged.', lvl: 'danger'},
+      });
+    } else {
+      this.submitAnnotations();
     }
   }
 
@@ -338,7 +366,7 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
           </div>
 
           <div className="row controls">
-            <p className="col-sm-4">
+            <p className="col-sm-1">
               <button
                 className={`btn-simple btn-play fa ${playStatusClass}`}
                 onClick={this.playPause}
@@ -348,11 +376,14 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
             <p className="col-sm-4 text-center">
               <button
                 className="btn btn-submit"
-                onClick={this.submitAnnotations}
+                onClick={this.checkAnnotations}
                 type="button"
               >Submit &amp; load next recording</button>
             </p>
-            <p className="col-sm-4 text-right">
+            <div className="col-sm-4">
+              <Toast toastMsg={this.state.toastMsg}></Toast>
+            </div>
+            <p className="col-sm-3 text-right">
               {this.formatTimestamp(this.state.currentTime)}
               &nbsp;/&nbsp;
               {this.formatTimestamp(this.state.duration)}
