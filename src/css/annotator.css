@@ -113,24 +113,8 @@ html {
   font-size: 12px;
 }
 
-.region-header--inactive {
-  border: 2px solid #00b1b9;
-  background-color: #00b1b9;
-}
-.region-header--active {
-  border: 2px solid #ff7600;
-  background-color: #ff7600;
-}
-
 .region-body {
   width: 100%;
-}
-
-.region-body--inactive {
-  border: 2px solid #00b1b9;
-}
-.region-body--active {
-  border: 2px solid #ff7600;
 }
 
 /* Controls */

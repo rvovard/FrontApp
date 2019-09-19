@@ -2,6 +2,7 @@
 import React, { Component } from 'react';
 import { Link } from 'react-router-dom';
 import request from 'superagent';
+import * as utils from '../utils';
 
 import AudioPlayer from './AudioPlayer';
 import Workbench from './Workbench';
@@ -51,6 +52,7 @@ type AudioAnnotatorProps = {
 type AudioAnnotatorState = {
   error: ?string,
   toastMsg: ?ToastMsg,
+  tagColors: Map<string, string>,
   isLoading: boolean,
   isPlaying: boolean,
   stopTime: ?number,
@@ -74,6 +76,7 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
     this.state = {
       error: undefined,
       toastMsg: undefined,
+      tagColors: new Map(),
       isLoading: true,
       isPlaying: false,
       stopTime: undefined,
@@ -103,6 +106,7 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
 
         // Finally, setting state
         this.setState({
+          tagColors: utils.buildTagColors(task.annotationTags),
           task,
           duration,
           frequencyRange,
@@ -349,6 +353,7 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
 
           <div className="row">
             <Workbench
+              tagColors={this.state.tagColors}
               currentTime={this.state.currentTime}
               duration={this.state.duration}
               startFrequency={task.boundaries.startFrequency}
@@ -420,15 +425,32 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
       const ann: Annotation = activeAnn;
       const task: AnnotationTask = this.state.task;
 
-      const tags = task.annotationTags.map((tag, idx) => (
-        <li key={`tag-${idx.toString()}`}>
-          <button
-            className={`btn ${(ann.annotation === tag) ? 'btn-tag-selected' : 'btn-tag'}`}
-            onClick={() => this.toggleTag(tag)}
-            type="button"
-          >{tag}</button>
-        </li>
-      ));
+      const tags = task.annotationTags.map((tag, idx) => {
+        const color: string = utils.getTagColor(this.state.tagColors, tag);
+
+        const style = {
+          inactive: {
+            backgroundColor: color,
+            border: 'none',
+            color: '#ffffff',
+          },
+          active: {
+            backgroundColor: 'transparent',
+            border: `1px solid ${color}`,
+            color: color,
+          },
+        };
+        return (
+          <li key={`tag-${idx.toString()}`}>
+            <button
+              className="btn"
+              style={(ann.annotation === tag) ? style.active : style.inactive}
+              onClick={() => this.toggleTag(tag)}
+              type="button"
+            >{tag}</button>
+          </li>
+        );
+      });
 
       return (
         <div className="card">
