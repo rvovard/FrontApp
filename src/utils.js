@@ -27,5 +27,5 @@ export function buildTagColors(tags: Array<string>): Map<string, string> {
 
 export function getTagColor(tags: Map<string, string>, tag: string): string {
   const color: ?string = tags.get(tag);
-  return color ? color : '#ffffff';
+  return color ? color : '#bbbbbb';
 }

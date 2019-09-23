@@ -108,9 +108,17 @@ html {
 
 .region-header {
   width: 100%;
+  min-width: 100px;
+  margin-left: 50%;
+  transform: translateX(-50%);
   padding: 0 4px;
   color: #ffffff;
   font-size: 12px;
+}
+
+.region-header > span {
+  overflow-x: hidden;
+  overflow-wrap: break-word;
 }
 
 .region-body {
