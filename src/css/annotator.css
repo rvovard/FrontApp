@@ -119,6 +119,8 @@ html {
 .region-header > span {
   overflow-x: hidden;
   overflow-wrap: break-word;
+  align-self: center;
+  min-height: 18px;
 }
 
 .region-body {

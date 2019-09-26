@@ -126,10 +126,16 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
   }
 
   buildErrorMessage = (err: any) => {
-    return 'Status: ' + err.status.toString() +
-      ' - Reason: ' + err.message +
-      (err.response.body.title ? ` - ${err.response.body.title}` : '') +
-      (err.response.body.detail ? ` - ${err.response.body.detail}` : '');
+    if (err !== null && typeof err === 'object' && err.status && err.message) {
+      return 'Status: ' + err.status.toString() +
+        ' - Reason: ' + err.message +
+        (err.response.body.title ? ` - ${err.response.body.title}` : '') +
+        (err.response.body.detail ? ` - ${err.response.body.detail}` : '');
+    } else if (typeof err === 'string') {
+      return err;
+    } else {
+      return err.toString();
+    }
   }
 
   seekTo = (newTime: number) => {
@@ -241,7 +247,7 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
     }
   }
 
-  checkAnnotations = () => {
+  checkAndSubmitAnnotations = () => {
     const emptyAnnotations = this.state.annotations
       .filter((ann: Annotation) => ann.annotation.length === 0);
 
@@ -381,7 +387,7 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
             <p className="col-sm-4 text-center">
               <button
                 className="btn btn-submit"
-                onClick={this.checkAnnotations}
+                onClick={this.checkAndSubmitAnnotations}
                 type="button"
               >Submit &amp; load next recording</button>
             </p>
