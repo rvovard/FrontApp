@@ -73,6 +73,9 @@ class Region extends Component<RegionProps, RegionState> {
         backgroundColor: isActive ? this.props.color : `${this.props.color}88`,
         border: isActive ? `2px solid ${this.props.color}` : `2px solid ${this.props.color}88`,
       },
+      headerSpan: {
+        height: `${HEADER_HEIGHT}px`,
+      },
       body: {
         height: this.state.height - HEADER_HEIGHT - HEADER_MARGIN,
         border: isActive ? `2px solid ${this.props.color}` : `2px solid ${this.props.color}88`,
@@ -95,6 +98,7 @@ class Region extends Component<RegionProps, RegionState> {
           <span
             className="flex-fill text-center"
             onClick={this.selectAnnotation}
+            style={styles.headerSpan}
           >{this.props.annotation.annotation}</span>
           <button
             className="btn-simple fa fa-times-circle"
