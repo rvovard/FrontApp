@@ -18,6 +18,13 @@ if (!process.env.REACT_APP_API_URL) throw new Error('REACT_APP_API_URL missing i
 const API_URL = process.env.REACT_APP_API_URL + '/annotation-task';
 
 
+export type SpectroUrlsParams = {
+  nfft: number,
+  winsize: number,
+  overlap: number,
+  urls: Array<string>,
+};
+
 type AnnotationTask = {
   annotationTags: Array<string>,
   boundaries: {
@@ -27,7 +34,7 @@ type AnnotationTask = {
     endFrequency: number,
   },
   audioUrl: string,
-  spectroUrls: any,
+  spectroUrls: Array<SpectroUrlsParams>,
 };
 
 export type Annotation = {
@@ -98,21 +105,25 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
       .then(result => {
         const task: AnnotationTask = result.body.task;
 
-        // Computing duration (in seconds)
-        const startDate = new Date(task.boundaries.startTime);
-        const endDate = new Date(task.boundaries.endTime)
-        const duration: number = (endDate.getTime() - startDate.getTime()) / 1000;
-        const frequencyRange: number = task.boundaries.endFrequency - task.boundaries.startFrequency;
+        if (task.annotationTags.length > 0 && task.spectroUrls.length > 0) {
+          // Computing duration (in seconds)
+          const startDate = new Date(task.boundaries.startTime);
+          const endDate = new Date(task.boundaries.endTime)
+          const duration: number = (endDate.getTime() - startDate.getTime()) / 1000;
+          const frequencyRange: number = task.boundaries.endFrequency - task.boundaries.startFrequency;
 
-        // Finally, setting state
-        this.setState({
-          tagColors: utils.buildTagColors(task.annotationTags),
-          task,
-          duration,
-          frequencyRange,
-          isLoading: false,
-          error: undefined,
-        });
+          // Finally, setting state
+          this.setState({
+            tagColors: utils.buildTagColors(task.annotationTags),
+            task,
+            duration,
+            frequencyRange,
+            isLoading: false,
+            error: undefined,
+          });
+        } else {
+          this.setState({isLoading: false, error: 'Not enough data to retrieve spectrograms'});
+        }
       })
       .catch(err => {
         if (err.status && err.status === 401) {
@@ -348,15 +359,11 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
           <Workbench
             tagColors={this.state.tagColors}
             currentTime={this.state.currentTime}
-            // duration={this.state.duration} @TODO TEMP
-            duration={300}
-            // startFrequency={task.boundaries.startFrequency} @TODO TEMP
-            startFrequency={0}
-            // frequencyRange={this.state.frequencyRange} @TODO TEMP
-            frequencyRange={12000}
-            spectrogramUrl={task.spectroUrls['100%']}
+            duration={this.state.duration}
+            startFrequency={task.boundaries.startFrequency}
+            frequencyRange={this.state.frequencyRange}
+            spectroUrlsParams={task.spectroUrls}
             annotations={this.state.annotations}
-            zoomLevels={[1, 2, 4, 8, 16,]}
             onAnnotationCreated={this.saveAnnotation}
             onAnnotationUpdated={this.updateAnnotation}
             onAnnotationDeleted={this.deleteAnnotation}

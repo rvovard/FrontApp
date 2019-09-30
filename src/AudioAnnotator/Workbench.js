@@ -2,7 +2,7 @@
 import React, { Component } from 'react';
 import * as utils from '../utils';
 
-import type { Annotation } from './AudioAnnotator';
+import type { Annotation, SpectroUrlsParams } from './AudioAnnotator';
 import Region from './Region';
 
 // Component dimensions constants
@@ -19,15 +19,32 @@ type Spectrogram = {
   image: Image,
 };
 
+type SpectroParams = {
+  nfft: number,
+  winsize: number,
+  overlap: number,
+  zoom: number,
+};
+
+type SpectroDetails = {
+  nfft: number,
+  winsize: number,
+  overlap: number,
+  zoom: number,
+  urlPrefix: string,
+  urlFileName: string,
+  urlFileExtension: string,
+  images: Array<Spectrogram>,
+};
+
 type WorkbenchProps = {
   tagColors: Map<string, string>,
   currentTime: number,
   duration: number,
   startFrequency: number,
   frequencyRange: number,
-  spectrogramUrl: string,
+  spectroUrlsParams: Array<SpectroUrlsParams>,
   annotations: Array<Annotation>,
-  zoomLevels: Array<number>,
   onAnnotationCreated: (Annotation) => void,
   onAnnotationUpdated: (Annotation) => void,
   onAnnotationDeleted: (Annotation) => void,
@@ -39,11 +56,11 @@ type WorkbenchProps = {
 type WorkbenchState = {
   wrapperWidth: number,
   wrapperHeight: number,
-  zoomFactor: number,
   timePxRatio: number,
   freqPxRatio: number,
-  spectrogram: ?Image,
-  spectrograms: Map<number, Array<Spectrogram>>,
+  currentParams: SpectroParams,
+  currentZoom: number,
+  spectrograms: Array<SpectroDetails>,
   newAnnotation: ?Annotation,
 };
 
@@ -72,14 +89,25 @@ class Workbench extends Component<WorkbenchProps, WorkbenchState> {
   constructor(props: WorkbenchProps) {
     super(props);
 
+    let currentParams: SpectroParams = {nfft: 1, winsize: 1, overlap: 1, zoom: 1};
+    if (props.spectroUrlsParams.length > 0) {
+      const params = props.spectroUrlsParams[0];
+      currentParams = {
+        nfft: params.nfft,
+        winsize: params.winsize,
+        overlap: params.overlap,
+        zoom: 1,
+      };
+    }
+
     this.state = {
       wrapperWidth: CANVAS_WIDTH,
       wrapperHeight: CANVAS_HEIGHT + TIME_AXIS_SIZE + SCROLLBAR_RESERVED,
-      zoomFactor: 1,
       timePxRatio: CANVAS_WIDTH / props.duration,
       freqPxRatio: CANVAS_HEIGHT / props.frequencyRange,
-      spectrogram: undefined,
-      spectrograms: new Map(),
+      currentParams,
+      currentZoom: 1,
+      spectrograms: [],
       newAnnotation: undefined,
     };
 
@@ -94,37 +122,53 @@ class Workbench extends Component<WorkbenchProps, WorkbenchState> {
     this.drawStartFrequency = 0;
   }
 
+  buildSpectrogramsDetails(params: Array<SpectroUrlsParams>): Array<SpectroDetails> {
+    return params.flatMap(conf => {
+      // URL
+      const baseUrlRegexp = /(.*\/)(.*)_[\d.]*_[\d.]*(\..*)/;
+      const urlParts = conf.urls[0].match(baseUrlRegexp);
+
+      const base = {
+        nfft: conf.nfft,
+        winsize: conf.winsize,
+        overlap: conf.overlap,
+        urlPrefix: urlParts ? urlParts[1] : '',
+        urlFileName: urlParts ? urlParts[2] : '',
+        urlFileExtension: urlParts ? urlParts[3] : '',
+      };
+
+      // Zoom management
+      const nbZooms = Math.log2(conf.urls.length + 1);
+      const zoomLevels: Array<number> = [...Array(nbZooms)].map((_, i) => Math.pow(2, i));
+
+      return zoomLevels.map(zoom => {
+        const step: number = this.props.duration / zoom;
+
+        const images = [...Array(zoom)].map((_, i) => {
+          const start: number = i * step;
+          const end: number = (i + 1) * step;
+          const strStart = Number.isInteger(start) ? start.toFixed(1) : start.toString();
+          const strEnd = Number.isInteger(end) ? end.toFixed(1) : end.toString();
+
+          const image = new Image();
+          image.src = `${base.urlPrefix}${base.urlFileName}_${strStart}_${strEnd}${base.urlFileExtension}`;
+          image.onload = this.renderCanvas;
+          return {start, end, image};
+        });
+
+        return Object.assign({}, base, {zoom, images});
+      });
+    });
+  }
+
   componentDidMount() {
-    // Handling spectrogram image
-    const spectrogram = new Image();
-    spectrogram.onload = this.renderCanvas;
-    spectrogram.src = this.props.spectrogramUrl;
-
-    this.setState({spectrogram});
-
     // Handling spectrogram images
     /* @todo Currently we load all images at this time, not only displayed ones
      * Implement a cache system which will load images when needed
      */
-    const spectrograms = this.props.zoomLevels.map(zoomLvl => {
-      const step: number = 300 / zoomLvl;
 
-      const zoomSpectros = [...Array(zoomLvl)].map((_, i) => {
-        const start: number = i * step;
-        const end: number = (i + 1) * step;
-        const strStart = Number.isInteger(start) ? start.toFixed(1) : start.toString();
-        const strEnd = Number.isInteger(end) ? end.toFixed(1) : end.toString();
-
-        const image = new Image();
-        image.src = `/sounds/A32C0253_${strStart}_${strEnd}.png`;
-        image.onload = this.renderCanvas;
-        return {start, end, image};
-      });
-
-      return [zoomLvl, zoomSpectros];
-    });
-
-    this.setState({spectrograms: new Map(spectrograms)});
+    const spectrograms: Array<SpectroDetails> = this.buildSpectrogramsDetails(this.props.spectroUrlsParams);
+    this.setState({spectrograms});
 
     // Add event listeners at the document level
     // (the user is able to release the click on any zone)
@@ -190,19 +234,32 @@ class Workbench extends Component<WorkbenchProps, WorkbenchState> {
     }
   }
 
+  getCurrentDetails(): Array<SpectroDetails> {
+    return this.state.spectrograms.filter((details: SpectroDetails) =>
+      (this.state.currentParams.nfft === details.nfft) &&
+        (this.state.currentParams.winsize === details.winsize) &&
+        (this.state.currentParams.overlap === details.overlap)
+    );
+  }
+
   zoom = (direction: number) => {
     const canvas: HTMLCanvasElement = this.canvasRef.current;
     const timeAxis: HTMLCanvasElement = this.timeAxisRef.current;
 
-    const oldZoomIdx: number = this.props.zoomLevels.findIndex(factor => factor === this.state.zoomFactor);
-    let newZoom: number = this.state.zoomFactor;
+    const zoomLevels = this.getCurrentDetails()
+      .map(details => details.zoom)
+      .sort((a, b) => a - b);
 
-    if (direction > 0 && oldZoomIdx < this.props.zoomLevels.length - 1) {
+    const oldZoomIdx: number = zoomLevels.findIndex(factor => factor === this.state.currentZoom);
+    let newZoom: number = this.state.currentZoom;
+
+    // When zoom will be free: if (direction > 0 && oldZoomIdx < zoomLevels.length - 1)
+    if (direction > 0 && oldZoomIdx < 4) {
       // Zoom in
-      newZoom = this.props.zoomLevels[oldZoomIdx+1];
+      newZoom = zoomLevels[oldZoomIdx+1];
     } else if (direction < 0 && oldZoomIdx > 0) {
       // Zoom out
-      newZoom = this.props.zoomLevels[oldZoomIdx-1];
+      newZoom = zoomLevels[oldZoomIdx-1];
     }
 
     canvas.width = this.state.wrapperWidth * newZoom;
@@ -212,7 +269,7 @@ class Workbench extends Component<WorkbenchProps, WorkbenchState> {
     // wrapper.scrollLeft = event.clientX * newZoom / 2;
 
     this.setState({
-      zoomFactor: newZoom,
+      currentZoom: newZoom,
       timePxRatio: this.state.wrapperWidth * newZoom / this.props.duration,
     });
   }
@@ -355,19 +412,14 @@ class Workbench extends Component<WorkbenchProps, WorkbenchState> {
 
   renderCanvas = () => {
     const canvas: HTMLCanvasElement = this.canvasRef.current;
-    const context: CanvasRenderingContext2D = canvas.getContext('2d');
+    const context: CanvasRenderingContext2D = canvas.getContext('2d', { alpha: false });
     context.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Draw spectro image
-    if (this.state.spectrogram) {
-      context.drawImage(this.state.spectrogram, 0, 0, canvas.width, canvas.height);
-    }
-
     // Draw spectro images
-    const spectrograms = this.state.spectrograms.get(this.state.zoomFactor);
+    const spectrograms = this.getCurrentDetails().find(details => details.zoom === this.state.currentZoom);
     if (spectrograms) {
-      spectrograms.forEach(spectro => {
-        if (spectro.image) {
+      spectrograms.images.forEach(spectro => {
+        if (spectro.image && spectro.image.complete) {
           const x = spectro.start * this.state.timePxRatio;
           const width = Math.floor((spectro.end - spectro.start) * this.state.timePxRatio);
           context.drawImage(spectro.image, x, 0, width, canvas.height);
@@ -425,7 +477,7 @@ class Workbench extends Component<WorkbenchProps, WorkbenchState> {
         <p className="workbench-controls">
           <button className="btn-simple fa fa-search-plus" onClick={() => this.zoom(1)}></button>
           <button className="btn-simple fa fa-search-minus" onClick={() => this.zoom(-1)}></button>
-          <span>{this.state.zoomFactor}x</span>
+          <span>{this.state.currentZoom}x</span>
         </p>
 
         <canvas
