@@ -227,10 +227,10 @@ class Workbench extends Component<WorkbenchProps, WorkbenchState> {
 
     if (event.deltaY < 0) {
       // Zoom in
-      this.zoom(1);
+      this.zoom(1, event.clientX);
     } else if (event.deltaY > 0) {
       // Zoom out
-      this.zoom(-1);
+      this.zoom(-1, event.clientX);
     }
   }
 
@@ -242,7 +242,7 @@ class Workbench extends Component<WorkbenchProps, WorkbenchState> {
     );
   }
 
-  zoom = (direction: number) => {
+  zoom = (direction: number, xFrom: ?number) => {
     const canvas: HTMLCanvasElement = this.canvasRef.current;
     const timeAxis: HTMLCanvasElement = this.timeAxisRef.current;
 
@@ -262,16 +262,32 @@ class Workbench extends Component<WorkbenchProps, WorkbenchState> {
       newZoom = zoomLevels[oldZoomIdx-1];
     }
 
-    canvas.width = this.state.wrapperWidth * newZoom;
-    timeAxis.width = this.state.wrapperWidth * newZoom;
+    // If zoom factor has changed
+    if (newZoom !== this.state.currentZoom) {
+      // Compute new center (before resizing)
+      const wrapper: HTMLElement = this.wrapperRef.current;
+      const zoomRatio = newZoom / this.state.currentZoom;
 
-    // const wrapper: HTMLElement = this.wrapperRef.current;
-    // wrapper.scrollLeft = event.clientX * newZoom / 2;
+      let scroll: number = 0;
+      if (xFrom) {
+        const bounds: ClientRect = canvas.getBoundingClientRect();
+        const newCenter = (xFrom - bounds.left) * zoomRatio;
+        scroll = Math.floor(newCenter - CANVAS_WIDTH / 2);
+      } else {
+        scroll = Math.floor(wrapper.scrollLeft * zoomRatio);
+      }
 
-    this.setState({
-      currentZoom: newZoom,
-      timePxRatio: this.state.wrapperWidth * newZoom / this.props.duration,
-    });
+      // Resize canvases and scroll
+      canvas.width = this.state.wrapperWidth * newZoom;
+      timeAxis.width = this.state.wrapperWidth * newZoom;
+
+      wrapper.scrollLeft = scroll;
+
+      this.setState({
+        currentZoom: newZoom,
+        timePxRatio: this.state.wrapperWidth * newZoom / this.props.duration,
+      });
+    }
   }
 
   onStartNewAnnotation = (event: SyntheticPointerEvent<HTMLCanvasElement>) => {
