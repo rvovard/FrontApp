@@ -92,13 +92,21 @@ html {
 .workbench-controls {
   position: absolute;
   top: 10px;
-  left: 300px;
+  left: 100px;
   background-color: #ffffff;
   border-radius: 5px;
-  font-size: 20px;
 }
 .workbench-controls > * {
   display: inline-block;
+  padding: 5px;
+}
+.workbench-controls > select {
+  height: auto;
+  width: auto;
+  margin-right: 20px;
+}
+.workbench-controls > button, .workbench-controls > span {
+  font-size: 20px;
   padding: 5px;
 }
 

@@ -176,7 +176,18 @@ class Workbench extends Component<WorkbenchProps, WorkbenchState> {
     document.addEventListener('pointerup', this.onEndNewAnnotation);
   }
 
-  componentDidUpdate() {
+  componentDidUpdate(prevProps: WorkbenchProps) {
+    // Scroll if progress bar reach the right edge of the screen
+    const wrapper: HTMLElement = this.wrapperRef.current;
+    const canvas: HTMLCanvasElement = this.canvasRef.current;
+    const oldX: number = Math.floor(canvas.width * prevProps.currentTime / this.props.duration);
+    const newX: number = Math.floor(canvas.width * this.props.currentTime / this.props.duration);
+
+    if ((oldX - wrapper.scrollLeft) < CANVAS_WIDTH && (newX - wrapper.scrollLeft) >= CANVAS_WIDTH) {
+      wrapper.scrollLeft += CANVAS_WIDTH;
+    }
+
+    // Re-render
     this.renderCanvas();
     this.renderTimeAxis();
     this.renderFreqAxis();
@@ -242,6 +253,17 @@ class Workbench extends Component<WorkbenchProps, WorkbenchState> {
     );
   }
 
+  changeCurrentParams = (event: SyntheticInputEvent<HTMLSelectElement>) => {
+    const fullParams = this.props.spectroUrlsParams[parseInt(event.target.value, 10)];
+    const newParams = {
+      nfft: fullParams.nfft,
+      winsize: fullParams.winsize,
+      overlap: fullParams.overlap,
+      zoom: 1,
+    };
+    this.setState({currentParams: newParams}, this.renderCanvas);
+  }
+
   zoom = (direction: number, xFrom: ?number) => {
     const canvas: HTMLCanvasElement = this.canvasRef.current;
     const timeAxis: HTMLCanvasElement = this.timeAxisRef.current;
@@ -254,7 +276,7 @@ class Workbench extends Component<WorkbenchProps, WorkbenchState> {
     let newZoom: number = this.state.currentZoom;
 
     // When zoom will be free: if (direction > 0 && oldZoomIdx < zoomLevels.length - 1)
-    if (direction > 0 && oldZoomIdx < 4) {
+    if (direction > 0 && oldZoomIdx < 4 && oldZoomIdx < zoomLevels.length - 1) {
       // Zoom in
       newZoom = zoomLevels[oldZoomIdx+1];
     } else if (direction < 0 && oldZoomIdx > 0) {
@@ -491,6 +513,15 @@ class Workbench extends Component<WorkbenchProps, WorkbenchState> {
         style={style.workbench}
       >
         <p className="workbench-controls">
+          <select defaultValue={this.state.currentParams} onChange={this.changeCurrentParams}>
+            {this.props.spectroUrlsParams.map((params, idx) => {
+              return (
+                <option key={`params-${idx}`} value={idx}>
+                  {`nfft: ${params.nfft} / winsize: ${params.winsize} / overlap: ${params.overlap}`}
+                </option>
+              );
+            })}
+          </select>
           <button className="btn-simple fa fa-search-plus" onClick={() => this.zoom(1)}></button>
           <button className="btn-simple fa fa-search-minus" onClick={() => this.zoom(-1)}></button>
           <span>{this.state.currentZoom}x</span>
