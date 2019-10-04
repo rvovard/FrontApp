@@ -89,7 +89,7 @@ class Workbench extends Component<WorkbenchProps, WorkbenchState> {
   constructor(props: WorkbenchProps) {
     super(props);
 
-    let currentParams: SpectroParams = {nfft: 1, winsize: 1, overlap: 1, zoom: 1};
+    let currentParams: SpectroParams = {nfft: 0, winsize: 0, overlap: 0, zoom: 0};
     if (props.spectroUrlsParams.length > 0) {
       const params = props.spectroUrlsParams[0];
       currentParams = {
