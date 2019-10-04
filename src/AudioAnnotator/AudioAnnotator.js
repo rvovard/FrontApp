@@ -25,6 +25,15 @@ export type SpectroUrlsParams = {
   urls: Array<string>,
 };
 
+export type RawAnnotation = {
+  id: string,
+  annotation: string,
+  startTime: number,
+  endTime: number,
+  startFrequency: number,
+  endFrequency: number,
+};
+
 type AnnotationTask = {
   annotationTags: Array<string>,
   boundaries: {
@@ -35,6 +44,7 @@ type AnnotationTask = {
   },
   audioUrl: string,
   spectroUrls: Array<SpectroUrlsParams>,
+  previousAnnotations: Array<RawAnnotation>,
 };
 
 export type Annotation = {
@@ -44,7 +54,7 @@ export type Annotation = {
   endTime: number,
   startFrequency: number,
   endFrequency: number,
-  active: boolean;
+  active: boolean,
 };
 
 type AudioAnnotatorProps = {
@@ -112,6 +122,11 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
           const duration: number = (endDate.getTime() - startDate.getTime()) / 1000;
           const frequencyRange: number = task.boundaries.endFrequency - task.boundaries.startFrequency;
 
+          // Load previous annotations
+          const annotations: Array<Annotation> = task.previousAnnotations.map((ann: RawAnnotation) =>
+            Object.assign({}, ann, {active: false})
+          );
+
           // Finally, setting state
           this.setState({
             tagColors: utils.buildTagColors(task.annotationTags),
@@ -120,6 +135,7 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
             frequencyRange,
             isLoading: false,
             error: undefined,
+            annotations,
           });
         } else {
           this.setState({isLoading: false, error: 'Not enough data to retrieve spectrograms'});
