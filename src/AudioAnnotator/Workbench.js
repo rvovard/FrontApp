@@ -125,7 +125,7 @@ class Workbench extends Component<WorkbenchProps, WorkbenchState> {
   buildSpectrogramsDetails(params: Array<SpectroUrlsParams>): Array<SpectroDetails> {
     return params.flatMap(conf => {
       // URL
-      const baseUrlRegexp = /(.*\/)(.*)_[\d.]*_[\d.]*(\..*)/;
+      const baseUrlRegexp = /(.*\/)(.*)_[\d]*_[\d]*(\..*)/;
       const urlParts = conf.urls[0].match(baseUrlRegexp);
 
       const base = {
@@ -147,11 +147,9 @@ class Workbench extends Component<WorkbenchProps, WorkbenchState> {
         const images = [...Array(zoom)].map((_, i) => {
           const start: number = i * step;
           const end: number = (i + 1) * step;
-          const strStart = Number.isInteger(start) ? start.toFixed(1) : start.toString();
-          const strEnd = Number.isInteger(end) ? end.toFixed(1) : end.toString();
 
           const image = new Image();
-          image.src = `${base.urlPrefix}${base.urlFileName}_${strStart}_${strEnd}${base.urlFileExtension}`;
+          image.src = `${base.urlPrefix}${base.urlFileName}_${zoom.toString()}_${i}${base.urlFileExtension}`;
           image.onload = this.renderCanvas;
           return {start, end, image};
         });
