@@ -381,12 +381,15 @@ class Workbench extends Component<WorkbenchProps, WorkbenchState> {
     } else if (durationOnScreen > 60 && durationOnScreen <= 120) {
       step = 2;
       bigStep = 5;
-    } else if (durationOnScreen > 120 && durationOnScreen <= 240) {
+    } else if (durationOnScreen > 120 && durationOnScreen <= 500) {
       step = 4;
       bigStep = 5;
-    } else {
+    } else if (durationOnScreen > 500 && durationOnScreen <= 1000) {
       step = 10;
-      bigStep = 6;
+      bigStep = 60;
+    } else {
+      step = 30;
+      bigStep = 120;
     }
 
     const bounds: ClientRect = timeAxis.getBoundingClientRect();
@@ -422,15 +425,30 @@ class Workbench extends Component<WorkbenchProps, WorkbenchState> {
     const context: CanvasRenderingContext2D = freqAxis.getContext('2d');
     context.clearRect(0, 0, freqAxis.width, freqAxis.height);
 
-    const step: number = 500; // step of scale (in hz)
-    const bigStep: number = 2000;
+    let step: number = 500; // step of scale (in hz)
+    let bigStep: number = 2000;
+
+    const frequencyOnScreen: number = this.state.wrapperHeight / this.state.freqPxRatio;
+    if (frequencyOnScreen <= 500) {
+      step = 10;
+      bigStep = 100;
+    } else if (frequencyOnScreen > 500 && frequencyOnScreen <= 2000) {
+      step = 20;
+      bigStep = 100;
+    } else if (frequencyOnScreen > 2000 && frequencyOnScreen <= 20000) {
+      step = 500;
+      bigStep = 2000;
+    } else {
+      step = 2000;
+      bigStep = 10000;
+    }
 
     const startFreq: number = Math.ceil(this.props.startFrequency);
     const endFreq: number = Math.floor(this.props.startFrequency + this.props.frequencyRange);
     context.fillStyle = 'rgba(0, 0, 0)';
 
     let i: number = 0;
-    for (i = startFreq ; i <= endFreq ; i += 100) {
+    for (i = startFreq ; i <= endFreq ; i += 10) {
       if (i % step === 0) {
         const y: number = CANVAS_HEIGHT - (i - startFreq) * this.state.freqPxRatio - 2;
         let yTxt: number = y - 3;
