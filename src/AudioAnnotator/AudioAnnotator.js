@@ -34,6 +34,10 @@ export type RawAnnotation = {
   endFrequency: number,
 };
 
+export type Annotation = RawAnnotation & {
+  active: boolean,
+};
+
 type AnnotationTask = {
   annotationTags: Array<string>,
   boundaries: {
@@ -46,16 +50,6 @@ type AnnotationTask = {
   spectroUrls: Array<SpectroUrlsParams>,
   prevAnnotations: Array<RawAnnotation>,
   campaignId: number,
-};
-
-export type Annotation = {
-  id: string,
-  annotation: string,
-  startTime: number,
-  endTime: number,
-  startFrequency: number,
-  endFrequency: number,
-  active: boolean,
 };
 
 type AudioAnnotatorProps = {
