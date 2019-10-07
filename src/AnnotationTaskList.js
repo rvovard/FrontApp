@@ -3,8 +3,12 @@ import React, { Component } from 'react';
 import { Link } from 'react-router-dom';
 import request from 'superagent';
 
+// API constants
 if (!process.env.REACT_APP_API_URL) throw new Error('REACT_APP_API_URL missing in env');
 const API_URL = process.env.REACT_APP_API_URL + '/annotation-task/campaign/ID/my-list';
+
+const TASK_STATUS_FINISHED = 2;
+
 
 type AnnotationTaskListProps = {
   match: {
@@ -73,7 +77,9 @@ class AnnotationTaskList extends Component<AnnotationTaskListProps, AnnotationTa
           <td>{annotation_task.dataset_name}</td>
           <td>{start_date.toLocaleDateString()}</td>
           <td>{diff_time.toUTCString().split(' ')[4]}</td>
-          <td>{status_names[annotation_task.status]}</td>
+          <td
+            className={annotation_task.status === TASK_STATUS_FINISHED ? 'table-success' : 'table-warning'}
+          >{status_names[annotation_task.status]}</td>
           <td><Link to={'/audio-annotator/' + annotation_task.id}>Task link</Link></td>
         </tr>
       );
