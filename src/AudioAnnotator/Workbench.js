@@ -284,18 +284,23 @@ class Workbench extends Component<WorkbenchProps, WorkbenchState> {
 
     // If zoom factor has changed
     if (newZoom !== this.state.currentZoom) {
+      // New timePxRatio
+      const timePxRatio: number = this.state.wrapperWidth * newZoom / this.props.duration;
+
       // Compute new center (before resizing)
       const wrapper: HTMLElement = this.wrapperRef.current;
       const zoomRatio = newZoom / this.state.currentZoom;
 
-      let scroll: number = 0;
+      let newCenter: number = 0;
       if (xFrom) {
+        // x-coordinate has been given, center on it
         const bounds: ClientRect = canvas.getBoundingClientRect();
-        const newCenter = (xFrom - bounds.left) * zoomRatio;
-        scroll = Math.floor(newCenter - CANVAS_WIDTH / 2);
+        newCenter = (xFrom - bounds.left) * zoomRatio;
       } else {
-        scroll = Math.floor(wrapper.scrollLeft * zoomRatio);
+        // If no x-coordinate: center on currentTime
+        newCenter = this.props.currentTime * timePxRatio;
       }
+      const scroll = Math.floor(newCenter - CANVAS_WIDTH / 2);
 
       // Resize canvases and scroll
       canvas.width = this.state.wrapperWidth * newZoom;
@@ -305,7 +310,7 @@ class Workbench extends Component<WorkbenchProps, WorkbenchState> {
 
       this.setState({
         currentZoom: newZoom,
-        timePxRatio: this.state.wrapperWidth * newZoom / this.props.duration,
+        timePxRatio,
       });
     }
   }
