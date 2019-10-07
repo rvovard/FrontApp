@@ -44,7 +44,8 @@ type AnnotationTask = {
   },
   audioUrl: string,
   spectroUrls: Array<SpectroUrlsParams>,
-  previousAnnotations: Array<RawAnnotation>,
+  prevAnnotations: Array<RawAnnotation>,
+  campaignId: number,
 };
 
 export type Annotation = {
@@ -123,7 +124,7 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
           const frequencyRange: number = task.boundaries.endFrequency - task.boundaries.startFrequency;
 
           // Load previous annotations
-          const annotations: Array<Annotation> = task.previousAnnotations.map((ann: RawAnnotation) =>
+          const annotations: Array<Annotation> = task.prevAnnotations.map((ann: RawAnnotation) =>
             Object.assign({}, ann, {active: false})
           );
 
@@ -291,13 +292,13 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
   submitAnnotations = () => {
     const taskId: number = this.props.match.params.annotation_task_id;
 
-    const cleanAnnotations = this.state.annotations
+    const cleanAnnotations: Array<RawAnnotation> = this.state.annotations
       .sort((a, b) => a.startTime - b.startTime)
       .map(ann => {
         return {
           id: ann.id,
-          start: ann.startTime,
-          end: ann.endTime,
+          startTime: ann.startTime,
+          endTime: ann.endTime,
           annotation: ann.annotation,
           startFrequency: ann.startFrequency,
           endFrequency: ann.endFrequency,
@@ -353,8 +354,11 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
           <div className="row">
             <h1 className="col-sm-6">Ocean Data Explorer</h1>
             <ul className="col-sm-6 annotator-nav">
-              <li><Link to={'/annotation-campaigns'} title="Annotation campaign list">
-                Campaigns
+              <li><Link
+                to={`/annotation_tasks/${task.campaignId}`}
+                title="Go back to annotation campaign tasks"
+              >
+                Campaign&apos;s task list
               </Link></li>
               <li><Link to={'/audio-annotator/legacy/' + this.props.match.params.annotation_task_id}>
                 Switch to old annotator
