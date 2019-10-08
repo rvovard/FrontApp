@@ -72,14 +72,15 @@ class AnnotationTaskList extends Component<AnnotationTaskListProps, AnnotationTa
       let diff_time = new Date(new Date(annotation_task.end) - start_date);
       let status_names = ['Created', 'Started', 'Finished'];
       return (
-        <tr key={annotation_task.id}>
+        <tr
+          className={annotation_task.status === TASK_STATUS_FINISHED ? 'table-success' : 'table-warning'}
+          key={annotation_task.id}
+        >
           <td>{annotation_task.filename}</td>
           <td>{annotation_task.dataset_name}</td>
           <td>{start_date.toLocaleDateString()}</td>
           <td>{diff_time.toUTCString().split(' ')[4]}</td>
-          <td
-            className={annotation_task.status === TASK_STATUS_FINISHED ? 'table-success' : 'table-warning'}
-          >{status_names[annotation_task.status]}</td>
+          <td>{status_names[annotation_task.status]}</td>
           <td><Link to={'/audio-annotator/' + annotation_task.id}>Task link</Link></td>
         </tr>
       );
