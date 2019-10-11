@@ -402,23 +402,27 @@ class Workbench extends Component<WorkbenchProps, WorkbenchState> {
     const endTime: number = Math.floor(this.getTimeFromClientX(bounds.right));
 
     context.fillStyle = 'rgba(0, 0, 0)';
+    context.font = '10px Arial';
 
     let i: number = 0;
     for (i = startTime ; i <= endTime; i++) {
       if (i % step === 0) {
         const x: number = (i - startTime) * this.state.timePxRatio;
-        let xTxt: number = x - 25;
-        if (xTxt < 0) {
-          xTxt += 25;
-        } else if (xTxt >= (bounds.width - 30)) {
-          xTxt -= 25;
-        }
 
-        context.font = '10px Arial';
         if (i % bigStep === 0) {
+          // Bar
           context.fillRect(x, 0, 2, 15);
-          context.fillText(utils.formatTimestamp(i, false), xTxt, 25);
+
+          // Text
+          const timeText: string = utils.formatTimestamp(i, false);
+          let xTxt: number = x;
+          if (xTxt > 0) {
+            // "Right align" all labels but first
+            xTxt -= Math.round(timeText.length * 5);
+          }
+          context.fillText(timeText, xTxt, 25);
         } else {
+          // Bar only
           context.fillRect(x, 0, 1, 10);
         }
       }
@@ -448,21 +452,31 @@ class Workbench extends Component<WorkbenchProps, WorkbenchState> {
       bigStep = 10000;
     }
 
+    const bounds: ClientRect = freqAxis.getBoundingClientRect();
     const startFreq: number = Math.ceil(this.props.startFrequency);
     const endFreq: number = Math.floor(this.props.startFrequency + this.props.frequencyRange);
+
     context.fillStyle = 'rgba(0, 0, 0)';
+    context.font = '10px Arial';
 
     let i: number = 0;
     for (i = startFreq ; i <= endFreq ; i += 10) {
       if (i % step === 0) {
         const y: number = CANVAS_HEIGHT - (i - startFreq) * this.state.freqPxRatio - 2;
-        let yTxt: number = y - 3;
 
-        context.font = '10px Arial';
         if (i % bigStep === 0) {
+          // Bar
           context.fillRect(FREQ_AXIS_SIZE - 15, y, 15, 2);
+
+          // Text
+          let yTxt: number = y;
+          if (yTxt < (bounds.height - 5)) {
+            // "Top align" all labels but first
+            yTxt += 12;
+          }
           context.fillText(i.toString(), 0, yTxt);
         } else {
+          // Bar only
           context.fillRect(FREQ_AXIS_SIZE - 10, y, 10, 1);
         }
       }
