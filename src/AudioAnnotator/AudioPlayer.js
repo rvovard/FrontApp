@@ -26,11 +26,12 @@ type AudioPlayerProps = {
   onSeeked: any,
   onVolumeChanged: any,
   onLoadedMetadata: any,
+  playbackRate: number,
   preload: string,
   src: string,
   style: any,
   title: any,
-  volume: number
+  volume: number,
 };
 
 class AudioPlayer extends React.Component<AudioPlayerProps> {
@@ -61,6 +62,7 @@ class AudioPlayer extends React.Component<AudioPlayerProps> {
     onSeeked: () => {},
     onVolumeChanged: () => {},
     onLoadedMetadata: () => {},
+    playbackRate: 1.0,
     preload: 'metadata',
     style: {},
     title: '',
@@ -69,11 +71,15 @@ class AudioPlayer extends React.Component<AudioPlayerProps> {
 
   componentDidMount() {
     this.updateVolume(this.props.volume);
+    this.updatePlaybackRate(this.props.playbackRate);
   }
 
   componentDidUpdate(prevProps: AudioPlayerProps) {
     if (this.props.volume !== prevProps.volume) {
       this.updateVolume(this.props.volume);
+    }
+    if (this.props.playbackRate !== prevProps.playbackRate) {
+      this.updatePlaybackRate(this.props.playbackRate);
     }
   }
 
@@ -134,6 +140,12 @@ class AudioPlayer extends React.Component<AudioPlayerProps> {
   updateVolume(volume: number) {
     if (typeof volume === 'number' && volume !== this.audioElement.volume) {
       this.audioElement.volume = volume;
+    }
+  }
+
+  updatePlaybackRate(rate: number) {
+    if (typeof rate === 'number' && rate !== this.audioElement.playbackRate) {
+      this.audioElement.playbackRate = rate;
     }
   }
 
