@@ -72,6 +72,14 @@ class AudioPlayer extends React.Component<AudioPlayerProps> {
   componentDidMount() {
     this.updateVolume(this.props.volume);
     this.updatePlaybackRate(this.props.playbackRate);
+
+    // Do not preserve pitch when changing playback rate (experimental, so prevent flow errors)
+    // $FlowFixMe
+    this.audioElement.preservesPitch = false;
+    // $FlowFixMe
+    this.audioElement.mozPreservesPitch = false;
+    // $FlowFixMe
+    this.audioElement.webkitPreservesPitch = false;
   }
 
   componentDidUpdate(prevProps: AudioPlayerProps) {
