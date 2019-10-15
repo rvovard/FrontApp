@@ -18,7 +18,7 @@ if (!process.env.REACT_APP_API_URL) throw new Error('REACT_APP_API_URL missing i
 const API_URL = process.env.REACT_APP_API_URL + '/annotation-task';
 
 // Playback rates
-const AVAILABLE_RATES: Array<number> = [0.25, 0.5, 1.0, 1.5, 2.0, 3.0, 4.0, 5.0];
+const AVAILABLE_RATES: Array<number> = [0.25, 0.5, 1.0, 1.5, 2.0, 3.0, 4.0];
 
 
 export type SpectroUrlsParams = {
