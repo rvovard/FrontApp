@@ -75,11 +75,10 @@ class AudioPlayer extends React.Component<AudioPlayerProps> {
 
     // Do not preserve pitch when changing playback rate (experimental, so prevent flow errors)
     // $FlowFixMe
-    this.audioElement.preservesPitch = false;
-    // $FlowFixMe
-    this.audioElement.mozPreservesPitch = false;
-    // $FlowFixMe
-    this.audioElement.webkitPreservesPitch = false;
+    if (this.audioElement.mozPreservesPitch !== undefined) {
+      // $FlowFixMe
+      this.audioElement.mozPreservesPitch = false;
+    }
   }
 
   componentDidUpdate(prevProps: AudioPlayerProps) {

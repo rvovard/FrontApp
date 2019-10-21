@@ -357,6 +357,17 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
       const playbackRateOptions = AVAILABLE_RATES.map(rate => (
         <option key={`rate-${rate}`} value={rate.toString()}>{rate.toString()}x</option>
       ));
+      let playbackRateSelect = undefined;
+      // $FlowFixMe
+      if (this.audioPlayer && this.audioPlayer.audioElement.mozPreservesPitch !== undefined) {
+        playbackRateSelect = (
+          <select
+            className="form-control select-rate"
+            defaultValue={this.state.playbackRate}
+            onChange={this.changePlaybackRate}
+          >{playbackRateOptions}</select>
+        );
+      }
 
       return (
         <div className="annotator container-fluid">
@@ -408,11 +419,7 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
               ></button>
             </p>
             <p className="col-sm-1">
-              <select
-                className="form-control select-rate"
-                defaultValue={this.state.playbackRate}
-                onChange={this.changePlaybackRate}
-              >{playbackRateOptions}</select>
+              {playbackRateSelect}
             </p>
 
             <p className="col-sm-3 text-center">
