@@ -1,7 +1,5 @@
 # APLOSE Annotator User Guide
 
-[TOC]
-
 ## Application overview
 
 ### Login
