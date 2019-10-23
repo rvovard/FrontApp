@@ -560,8 +560,7 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
     return (
       <span>
         <a
-          // href="https://github.com/Project-ODE/FrontApp/blob/master/docs/user_guide_annotator.md"
-          href="https://github.com/rvovard/FrontApp/blob/feature/wordings/docs/user_guide_annotator.md"
+          href="https://github.com/Project-ODE/FrontApp/blob/master/docs/user_guide_annotator.md"
           rel="noopener noreferrer"
           target="_blank"
         >Annotator User Guide</a>
