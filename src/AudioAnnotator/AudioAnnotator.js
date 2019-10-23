@@ -374,17 +374,17 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
         <div className="annotator container-fluid">
           <div className="row">
             <h1 className="col-sm-6">APLOSE</h1>
-            <p className="col-sm-3 annotator-nav">
+            <p className="col-sm-4 annotator-nav">
               {this.renderUserGuideLink()}
               {this.renderInstructionsLink()}
             </p>
-            <ul className="col-sm-3 annotator-nav">
+            <ul className="col-sm-2 annotator-nav">
               <li><Link
-                className="btn btn-warning"
+                className="btn btn-danger"
                 to={`/annotation_tasks/${task.campaignId}`}
                 title="Go back to annotation campaign tasks"
               >
-                Campaign&apos;s task list
+                Back to campaign
               </Link></li>
             </ul>
           </div>
@@ -577,7 +577,7 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
             href={this.state.task.instructionsUrl}
             rel="noopener noreferrer"
             target="_blank"
-          >How to annotate for this campaign</a>
+          >Annotation instructions for this campaign</a>
         </span>
       );
     }
