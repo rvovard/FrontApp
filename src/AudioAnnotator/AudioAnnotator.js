@@ -563,7 +563,7 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
           href="https://github.com/Project-ODE/FrontApp/blob/master/docs/user_guide_annotator.md"
           rel="noopener noreferrer"
           target="_blank"
-        >Annotator User Guide</a>
+        ><span className="fa fa-question-circle"></span>&nbsp;Annotator User Guide</a>
       </span>
     );
   }
@@ -576,7 +576,7 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
             href={this.state.task.instructionsUrl}
             rel="noopener noreferrer"
             target="_blank"
-          >Annotation instructions for this campaign</a>
+          ><span className="fa fa-info-circle"></span>&nbsp;Campaign instructions</a>
         </span>
       );
     }
