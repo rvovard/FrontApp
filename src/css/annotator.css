@@ -165,6 +165,10 @@ html {
 .annotator-controls > p {
   margin-bottom: 0;
 }
+.audio-player {
+  display: flex;
+  align-self: center;
+}
 
 .btn-play {
   color: #00b1b9;

@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import request from 'superagent';
 import * as utils from '../utils';
 
-import AudioPlayer from './AudioPlayer';
+import AudioManager from './AudioManager';
 import Workbench from './Workbench';
 
 import type { ToastMsg } from '../Toast';
@@ -16,9 +16,6 @@ import '../css/annotator.css';
 // API constants
 if (!process.env.REACT_APP_API_URL) throw new Error('REACT_APP_API_URL missing in env');
 const API_URL = process.env.REACT_APP_API_URL + '/annotation-task';
-
-// Playback rates
-const AVAILABLE_RATES: Array<number> = [0.25, 0.5, 1.0, 1.5, 2.0, 3.0, 4.0];
 
 
 export type SpectroUrlsParams = {
@@ -50,6 +47,7 @@ type AnnotationTask = {
     endFrequency: number,
   },
   audioUrl: string,
+  audioRate: number,
   spectroUrls: Array<SpectroUrlsParams>,
   prevAnnotations: Array<RawAnnotation>,
   campaignId: number,
@@ -71,10 +69,8 @@ type AudioAnnotatorState = {
   tagColors: Map<string, string>,
   isLoading: boolean,
   isPlaying: boolean,
-  stopTime: ?number,
   currentTime: number,
   duration: number,
-  playbackRate: number,
   frequencyRange: number,
   task: ?AnnotationTask,
   taskStartTime: number,
@@ -83,7 +79,7 @@ type AudioAnnotatorState = {
 
 class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState> {
   audioContext: AudioContext;
-  audioPlayer: AudioPlayer;
+  audioManager: AudioManager;
 
   constructor(props: AudioAnnotatorProps) {
     super(props);
@@ -96,10 +92,8 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
       tagColors: new Map(),
       isLoading: true,
       isPlaying: false,
-      stopTime: undefined,
       currentTime: 0,
       duration: 0,
-      playbackRate: 1.0,
       frequencyRange: 0,
       task: undefined,
       taskStartTime: now.getTime(),
@@ -167,46 +161,21 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
   }
 
   seekTo = (newTime: number) => {
-    this.audioPlayer.audioElement.currentTime = newTime;
+    if (this.audioManager) {
+      this.audioManager.seekTo(newTime);
+    }
     this.updateProgress(newTime);
   }
 
-  playPause = () => {
-    if (this.audioPlayer.audioElement.paused) {
-      this.play();
-    } else {
-      this.pause();
+  playAnnotation = (annotation: Annotation) => {
+    this.activateAnnotation(annotation);
+    if (this.audioManager) {
+      this.audioManager.play(annotation.startTime, annotation.endTime);
     }
-  }
-
-  play = (annotation: ?Annotation) => {
-    if (annotation) {
-      this.audioPlayer.audioElement.currentTime = annotation.startTime;
-      this.activateAnnotation(annotation);
-    }
-    this.audioPlayer.audioElement.play();
-
-    this.setState({
-      isPlaying: true,
-      stopTime: annotation ? annotation.endTime : undefined,
-    });
-  }
-
-  pause = () => {
-    this.audioPlayer.audioElement.pause();
-
-    this.setState({
-      isPlaying: false,
-      stopTime: undefined,
-    });
   }
 
   updateProgress = (seconds: number) => {
-    if (this.state.stopTime && (seconds > this.state.stopTime)) {
-      this.pause();
-    } else {
-      this.setState({currentTime: seconds});
-    }
+    this.setState({currentTime: seconds});
   }
 
   saveAnnotation = (annotation: Annotation) => {
@@ -336,12 +305,6 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
       });
   }
 
-  changePlaybackRate = (event: SyntheticInputEvent<HTMLSelectElement>) => {
-    this.setState({
-      playbackRate: parseFloat(event.target.value),
-    });
-  }
-
   render() {
     if (this.state.isLoading) {
       return <p>Loading...</p>;
@@ -351,24 +314,8 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
       return <p>Unknown error while loading task.</p>
     } else {
       const task: AnnotationTask = this.state.task;
-      const playStatusClass = this.state.isPlaying ? "fa-pause-circle" : "fa-play-circle";
       const sortedAnnotations: Array<Annotation> = this.state.annotations
         .sort((a, b) => a.startTime - b.startTime);
-
-      const playbackRateOptions = AVAILABLE_RATES.map(rate => (
-        <option key={`rate-${rate}`} value={rate.toString()}>{rate.toString()}x</option>
-      ));
-      let playbackRateSelect = undefined;
-      // $FlowFixMe
-      if (this.audioPlayer && this.audioPlayer.audioElement.mozPreservesPitch !== undefined) {
-        playbackRateSelect = (
-          <select
-            className="form-control select-rate"
-            defaultValue={this.state.playbackRate}
-            onChange={this.changePlaybackRate}
-          >{playbackRateOptions}</select>
-        );
-      }
 
       return (
         <div className="annotator container-fluid">
@@ -389,17 +336,6 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
             </ul>
           </div>
 
-          <AudioPlayer
-            // controls
-            listenInterval={10}
-            onListen={(seconds) => this.updateProgress(seconds)}
-            onLoadedMetadata={() => this.updateProgress(0)}
-            preload="auto"
-            ref={(element) => { if (element) this.audioPlayer = element; } }
-            playbackRate={this.state.playbackRate}
-            src={task.audioUrl}
-          ></AudioPlayer>
-
           <Workbench
             tagColors={this.state.tagColors}
             currentTime={this.state.currentTime}
@@ -412,21 +348,21 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
             onAnnotationUpdated={this.updateAnnotation}
             onAnnotationDeleted={this.deleteAnnotation}
             onAnnotationSelected={this.activateAnnotation}
-            onAnnotationPlayed={this.play}
+            onAnnotationPlayed={this.playAnnotation}
             onSeek={this.seekTo}
           >
           </Workbench>
 
           <div className="row annotator-controls">
-            <p className="col-sm-1 text-right">
-              <button
-                className={`btn-simple btn-play fa ${playStatusClass}`}
-                onClick={this.playPause}
-              ></button>
-            </p>
-            <p className="col-sm-1">
-              {playbackRateSelect}
-            </p>
+            <AudioManager
+              className="col-sm-2"
+              listenInterval={10}
+              onListen={(seconds) => this.updateProgress(seconds)}
+              duration={this.state.duration}
+              ref={(element) => { if (element) this.audioManager = element; } }
+              sampleRate={task.audioRate}
+              source={task.audioUrl}
+            ></AudioManager>
 
             <p className="col-sm-3 text-center">
               <button
