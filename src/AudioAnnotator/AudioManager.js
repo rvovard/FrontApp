@@ -105,7 +105,7 @@ class AudioManager extends React.Component<AudioManagerProps, AudioManagerState>
   }
 
   getCurrentTime: (void => number) = () => {
-    if (this.state.isPlaying) {
+    if (this.state.isPlaying && this.audioContextStartTime > 0) {
       return this.state.startTime + this.getPlayedTime();
     } else {
       return this.state.startTime;
@@ -236,7 +236,7 @@ class AudioManager extends React.Component<AudioManagerProps, AudioManagerState>
     this.setListenTracker();
 
     // Common data
-    const currentIdx: number = this.getChunkIdxFromTime(this.state.startTime);
+    const currentIdx: number = this.getChunkIdxFromTime(this.getCurrentTime());
 
     let audioContextStartTime = this.audioContext.currentTime + START_GAP;
     if (this.audioContextStartTime > 0) {
