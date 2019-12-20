@@ -9,6 +9,11 @@ export function arrayToObject(array: Array<any>, key: any) {
   }, {});
 }
 
+export function range(from:number , to: number, step: number = 1): Array<number> {
+  const rangeLen: number = 1 + Math.floor((to - from) / step);
+  return [...Array(rangeLen).keys()].map((value) => from + (value * step));
+}
+
 // Object.values alternative for flow (cf https://github.com/facebook/flow/issues/2221)
 export function objectValues(obj: any): Array<any> {
   return Object.keys(obj).map(key => obj[key]);

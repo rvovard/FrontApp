@@ -361,7 +361,7 @@ class AudioAnnotator extends Component<AudioAnnotatorProps, AudioAnnotatorState>
               duration={this.state.duration}
               ref={(element) => { if (element) this.audioManager = element; } }
               sampleRate={task.audioRate}
-              source={task.audioUrl}
+              sourceURL="/sounds/0_"
             ></AudioManager>
 
             <p className="col-sm-3 text-center">
