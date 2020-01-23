@@ -57,7 +57,6 @@ class AudioManager extends React.Component<AudioManagerProps, AudioManagerState>
     this.state = {
       isLoading: true,
       isPlaying: false,
-      startAudioContextTime: 0,
       startTime: 0,
       endTime: this.props.duration,
       playbackRate: 1.0,
